@@ -15,8 +15,8 @@ window.DashboardActions = {
   //
   // Each entry becomes one button next to a PR (appliesTo: 'pr') or a Jira card (appliesTo: 'card').
   // The page calls run(ctx) on click, after showing `confirm` when it is set. ctx = { pr, card, data,
-  // token, github }, where github(method, path, body) is an authenticated fetch against api.github.com
-  // and token is the viewer's stored token.
+  // token, github }, where github(method, path, body) is a fetch against api.github.com authenticated with
+  // the viewer's stored code-repo token, and token is that token (writes target the code repo).
   //
   //   { id: 'mark-ready', label: 'mark ready', appliesTo: 'pr', confirm: 'Mark #{n} ready for review?',
   //     run: async ctx => ctx.github('PATCH', `/repos/${ctx.data.code_repo}/pulls/${ctx.pr.number}`, { draft: false }) }

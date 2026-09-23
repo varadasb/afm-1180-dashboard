@@ -2,23 +2,44 @@
 
 Static one-page dashboard for a stacked-PR epic: the branch stack, every card with its Jira status and PR state, a checker view, the test-build table and all the links. Served from GitHub Pages. No build step, no dependencies.
 
-The page itself holds no project data. It fetches `data.json` from a private data repo with the viewer's own GitHub token, in the browser, and overlays live PR state from the GitHub API. Nothing here writes to GitHub or Jira (v1).
+The page itself holds no project data. It fetches `data.json` from a private data repo with the viewer's own GitHub token, in the browser. With a second token for the code repo it also overlays live PR state from the GitHub API. Nothing here writes to GitHub or Jira (v1).
 
-## Setup (once per person, per browser)
+## Tokens
 
-1. Accept the invitation to the private data repo (`varadasb/afm-1180-dashboard-data`). Owner: varadasb. Checker: ZoeZhu-00.
-2. Create a GitHub token at https://github.com/settings/personal-access-tokens/new (fine-grained). Repository access: the data repo and the code repo. Permissions: **Contents: Read-only** (data repo) and **Pull requests: Read-only** (code repo). A classic token with the `repo` scope also works.
-3. Open the page, click the gear (top right), paste the token, Save and reload.
+Two tokens because a fine-grained GitHub token has exactly one resource owner. The data repo is owned by a user (`varadasb`), the code repo (`moodysanalytics/AXIS-Development`) by an organization, so one fine-grained token cannot read both.
 
-The token is stored in this browser's localStorage only. It is sent to api.github.com and nowhere else. "Forget token" in the settings removes it.
+| Settings field | Used for | Fine-grained token |
+|---|---|---|
+| Data token (required) | reading `data.json` from `varadasb/afm-1180-dashboard-data` | resource owner `varadasb`, repository `afm-1180-dashboard-data`, permission Contents: Read-only |
+| Code repo token (optional) | live PR state (draft / ready / merged / approved) from the code repo | resource owner `moodysanalytics`, repository `AXIS-Development`, permission Pull requests: Read-only |
+
+Without a code repo token the page makes no PR calls and shows the PR state recorded in `data.json`; the header says so and gives the generation time. A token GitHub refuses (401, 403, or 404 = the token has no access to the repo) is named in the header or the setup box and flagged under its own field in Settings.
+
+One-token alternative: a classic token (https://github.com/settings/tokens/new) with the `repo` scope reads both repos. Paste it in both fields. Works only if the organization allows classic tokens; if it enforces SAML SSO, authorize the token for the org ("Configure SSO" on the tokens page).
+
+## Setup: Varada (owns the data repo, member of the org)
+
+1. Data token: https://github.com/settings/personal-access-tokens/new. Resource owner `varadasb`. Repository access: Only select repositories, `afm-1180-dashboard-data`. Repository permissions: Contents, Read-only. Generate, copy.
+2. Code repo token: same page. Resource owner `moodysanalytics`. Repository access: Only select repositories, `AXIS-Development`. Repository permissions: Pull requests, Read-only. Generate, copy. If the org requires approval, the token stays `pending` until an org admin approves it; until then the overlay fails and the field is flagged.
+3. Open the page, gear (top right), paste each token in its field, Save and reload.
+
+## Setup: Zoe (collaborator on the data repo, member of the org)
+
+A fine-grained token cannot reach a private repo owned by another user, even for a collaborator: the resource-owner list offers only yourself and your organizations, and GitHub lists collaborator repos as a fine-grained gap. So the data token is a classic token.
+
+1. Accept the invitation to `varadasb/afm-1180-dashboard-data`.
+2. Data token: https://github.com/settings/tokens/new (classic), scope `repo`. If the org enforces SAML SSO, authorize the token for `moodysanalytics` ("Configure SSO"). Generate, copy.
+3. Open the page, gear (top right), paste the classic token in both fields, Save and reload. Alternative for the code repo field: a fine-grained token as in Varada's step 2.
+
+Tokens live in this browser's localStorage only and go to api.github.com and nowhere else. "Forget tokens" in the settings removes both. A v1 single token stored under the old key is used for both fields until the settings are saved again.
 
 ## Local use
 
-Clone this repo, copy or symlink the data repo's `data.json` next to `index.html` (it is git-ignored here), then `python -m http.server 8000` and open http://localhost:8000. The page tries `./data.json` first and only then the GitHub API.
+Clone this repo, copy or symlink the data repo's `data.json` next to `index.html` (it is git-ignored here), then `python -m http.server 8000` and open http://localhost:8000. The page tries `./data.json` first and only then the GitHub API, so no data token is needed locally; the code repo token still drives the live overlay.
 
 ## How the data is refreshed
 
-`data.json` is generated by `build_data.py` in the data repo from the plan files, a Jira snapshot and `gh pr list`; the data repo README has the two commands. The page shows the generation time and the Jira snapshot time in the header. PR state (draft / ready / merged / approved) is live when a token is set, so it is current even when `data.json` is stale.
+`data.json` is generated by `build_data.py` in the data repo from the plan files, a Jira snapshot and `gh pr list`; the data repo README has the two commands. The page shows the generation time and the Jira snapshot time in the header. PR state (draft / ready / merged / approved) is live when a code repo token is set, so it is current even when `data.json` is stale.
 
 ## Views
 
@@ -32,12 +53,13 @@ Clone this repo, copy or symlink the data repo's `data.json` next to `index.html
 
 Chips: Backlog ⚪, In Progress 🔵, In Review 🟡, Ready to Start 🟠, Done ✅; PR draft 📝, ready 🟢, merged 🟣, approved ✔.
 
-Quick actions (v1): each open PR has buttons that copy a ready `gh` command (`ready`, `approve`, `web`, `checkout`). `actions.js` holds the action registry; the `v2` section is the hook for API writes.
+Quick actions (v1): each open PR has buttons that copy a ready `gh` command (`ready`, `approve`, `web`, `checkout`). `actions.js` holds the action registry; the `v2` section is the hook for API writes (those will use the code repo token).
 
 ## Roadmap
 
 | Version | Adds |
 |---|---|
 | v1 | Links, status chips, live PR overlay, copy-to-clipboard `gh` commands |
+| v1.1 | Separate data and code-repo tokens; PR state from `data.json` when no code-repo token is set |
 | v2 | GitHub API writes from the page: mark ready, approve, comment; Jira transitions via deep links |
 | v3 | Scheduled data refresh, notifications when a card becomes ready to check |

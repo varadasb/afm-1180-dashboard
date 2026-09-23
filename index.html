@@ -104,6 +104,7 @@ td.nowrap { white-space: nowrap; }
 #settings input { width: 100%; }
 #settings .row { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
 #settings p { font-size: 12.5px; color: var(--muted); margin: 6px 0; }
+#settings .tokenerr { color: var(--danger); font-weight: 600; }
 .setup { border-left: 4px solid var(--accent); }
 .setup ol { margin: 6px 0 0; padding-left: 20px; }
 .setup li { margin: 4px 0; }
@@ -147,10 +148,15 @@ details summary { cursor: pointer; color: var(--muted); }
     <h2 style="margin:0">Settings</h2>
     <button class="iconbtn" id="close-settings" aria-label="Close">✕</button>
   </div>
-  <label for="s-token">GitHub token</label>
-  <input id="s-token" type="password" autocomplete="off" placeholder="github_pat_… or ghp_…">
-  <p>Stored only in this browser (localStorage). Never sent anywhere except api.github.com.</p>
-  <p>Needs: read access to the private data repo below (Contents: read) and read access to the code repo's pull requests (Pull requests: read) for the live PR overlay. A classic token with the <code>repo</code> scope also works.</p>
+  <label for="s-data-token">Data token <span class="dim">(required)</span></label>
+  <input id="s-data-token" type="password" autocomplete="off" placeholder="github_pat_… or ghp_…">
+  <p class="tokenerr" id="s-data-token-err" hidden></p>
+  <p>Reads <code>data.json</code> from the private data repo below. Fine-grained token: resource owner = the data repo owner, repository access = the data repo, permission <b>Contents: read</b>. If the data repo belongs to another user, a fine-grained token cannot reach it; use a classic token with the <code>repo</code> scope.</p>
+  <label for="s-code-token">Code repo token <span class="dim">(optional)</span></label>
+  <input id="s-code-token" type="password" autocomplete="off" placeholder="github_pat_… or ghp_…">
+  <p class="tokenerr" id="s-code-token-err" hidden></p>
+  <p>Adds live PR state from the code repo. Fine-grained token: resource owner = the organization that owns the code repo, repository access = the code repo, permission <b>Pull requests: read</b>. Without it the page shows the PR state recorded in <code>data.json</code>.</p>
+  <p>Two tokens because a fine-grained token has one resource owner. A classic token with the <code>repo</code> scope covers both repos: paste it in both fields. Tokens are stored only in this browser (localStorage) and sent only to api.github.com.</p>
   <label for="s-owner">Data repo owner</label>
   <input id="s-owner">
   <label for="s-repo">Data repo name</label>
@@ -159,7 +165,7 @@ details summary { cursor: pointer; color: var(--muted); }
   <input id="s-path">
   <div class="row">
     <button class="iconbtn" id="save-settings">Save and reload</button>
-    <button class="iconbtn" id="clear-token">Forget token</button>
+    <button class="iconbtn" id="clear-tokens">Forget tokens</button>
   </div>
   <p id="settings-note"></p>
 </aside>
@@ -170,7 +176,9 @@ details summary { cursor: pointer; color: var(--muted); }
 <script>
 (function () {
   'use strict';
-  const DEFAULTS = { owner: 'varadasb', repo: 'afm-1180-dashboard-data', path: 'data.json', token: '' };
+  const DEFAULTS = { owner: 'varadasb', repo: 'afm-1180-dashboard-data', path: 'data.json', dataToken: '', codeToken: '' };
+  // GitHub statuses that point at the token itself. 404 is included because a fine-grained token without access to a private repo gets 404, not 403.
+  const TOKEN_FAILURE = { 401: 'rejected (401 bad credentials)', 403: 'rejected (403 forbidden)', 404: 'has no access, or the repo does not exist (404)' };
   const LS_KEY = 'dashboard.settings';
   const STATUS_ICON = { 'Backlog': '⚪', 'In Progress': '🔵', 'In Review': '🟡', 'Ready to Start': '🟠', 'Done': '✅' };
   const WORK_LABEL = { done: 'done', partly: 'partly', wip: 'wip', pending: 'pending', na: 'n/a' };
@@ -180,11 +188,17 @@ details summary { cursor: pointer; color: var(--muted); }
   let settings = loadSettings();
   let data = null;
   let live = { state: 'off', count: 0, error: null };
+  let tokenError = { data: null, code: null };
   let stackPos = {};
 
   function loadSettings() {
-    try { return Object.assign({}, DEFAULTS, JSON.parse(localStorage.getItem(LS_KEY) || '{}')); }
-    catch (e) { return Object.assign({}, DEFAULTS); }
+    let stored = {};
+    try { stored = JSON.parse(localStorage.getItem(LS_KEY) || '{}'); } catch (e) { /* private mode or corrupt */ }
+    const merged = Object.assign({}, DEFAULTS, stored);
+    // v1 stored one token as `token`. Use it for both repos until the settings are saved again.
+    if (stored.token && !stored.dataToken && !stored.codeToken) { merged.dataToken = stored.token; merged.codeToken = stored.token; }
+    delete merged.token;
+    return merged;
   }
   function saveSettings() { try { localStorage.setItem(LS_KEY, JSON.stringify(settings)); } catch (e) { /* private mode */ } }
 
@@ -194,14 +208,21 @@ details summary { cursor: pointer; color: var(--muted); }
       const r = await fetch('./data.json', { cache: 'no-store' });
       if (r.ok) return { data: await r.json(), source: 'same-origin' };
     } catch (e) { /* not served next to the page */ }
-    if (!settings.token) return { data: null, source: 'none' };
+    if (!settings.dataToken) return { data: null, source: 'none' };
     const url = `https://api.github.com/repos/${settings.owner}/${settings.repo}/contents/${settings.path}`;
-    const r = await fetch(url, { headers: ghHeaders('application/vnd.github.raw+json'), cache: 'no-store' });
-    if (!r.ok) throw new Error(`GitHub ${r.status} loading ${settings.owner}/${settings.repo}/${settings.path}`);
+    const r = await fetch(url, { headers: ghHeaders(settings.dataToken, 'application/vnd.github.raw+json'), cache: 'no-store' });
+    if (!r.ok) throw ghError(r, 'Data token', `loading ${settings.owner}/${settings.repo}/${settings.path}`);
     return { data: await r.json(), source: 'github' };
   }
-  function ghHeaders(accept) {
-    return { 'Authorization': `Bearer ${settings.token}`, 'Accept': accept || 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' };
+  function ghHeaders(token, accept) {
+    return { 'Authorization': `Bearer ${token}`, 'Accept': accept || 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' };
+  }
+  // Error for a failed GitHub response. tokenFailed is set for the statuses that point at the token, so the settings panel can flag the right field.
+  function ghError(r, tokenLabel, what) {
+    const failure = TOKEN_FAILURE[r.status];
+    const err = new Error(failure ? `${tokenLabel} ${failure}` : `GitHub ${r.status} ${what}`);
+    err.tokenFailed = !!failure;
+    return err;
   }
 
   async function fetchLivePRs() {
@@ -218,7 +239,7 @@ details summary { cursor: pointer; color: var(--muted); }
     const q = `repo:${data.code_repo} is:pr author:${author}`;
     let after = null; const out = [];
     do {
-      const r = await fetch('https://api.github.com/graphql', { method: 'POST', headers: ghHeaders(), body: JSON.stringify({ query, variables: { q, after } }) });
+      const r = await fetch('https://api.github.com/graphql', { method: 'POST', headers: ghHeaders(settings.codeToken), body: JSON.stringify({ query, variables: { q, after } }) });
       const j = await r.json();
       if (!r.ok || j.errors) throw new Error((j.errors && j.errors[0].message) || `GraphQL ${r.status}`);
       const s = j.data.search;
@@ -231,8 +252,8 @@ details summary { cursor: pointer; color: var(--muted); }
     // Fallback when GraphQL is refused: the 300 most recently updated PRs. reviewDecision stays as in data.json.
     const out = [];
     for (let page = 1; page <= 3; page++) {
-      const r = await fetch(`https://api.github.com/repos/${data.code_repo}/pulls?state=all&sort=updated&direction=desc&per_page=100&page=${page}`, { headers: ghHeaders() });
-      if (!r.ok) throw new Error(`GitHub ${r.status} listing pull requests`);
+      const r = await fetch(`https://api.github.com/repos/${data.code_repo}/pulls?state=all&sort=updated&direction=desc&per_page=100&page=${page}`, { headers: ghHeaders(settings.codeToken) });
+      if (!r.ok) throw ghError(r, 'Code-repo token', 'listing pull requests');
       const list = await r.json();
       list.forEach(p => {
         if (!p.head || !p.head.ref.startsWith(prefix)) return;
@@ -267,18 +288,21 @@ details summary { cursor: pointer; color: var(--muted); }
   async function load() {
     $('#meta').textContent = 'Loading…';
     live = { state: 'off', count: 0, error: null };
+    tokenError = { data: null, code: null };
     let loaded;
     try { loaded = await fetchData(); }
-    catch (e) { data = null; renderSetup(e.message); return; }
+    catch (e) { data = null; if (e.tokenFailed) tokenError.data = e.message; renderSetup(e.message); showTokenErrors(); return; }
     data = loaded.data;
-    if (!data) { renderSetup(null); return; }
+    if (!data) { renderSetup(null); showTokenErrors(); return; }
     $('#setup').hidden = true;
-    if (settings.token) {
+    // No code-repo token: keep the PR state recorded in data.json and say so in the header. No request is made.
+    if (settings.codeToken) {
       try { const prs = await fetchLivePRs(); overlayPRs(prs); live = { state: 'live', count: prs.length, error: null }; }
-      catch (e) { live = { state: 'failed', count: 0, error: e.message }; }
+      catch (e) { live = { state: 'failed', count: 0, error: e.message }; if (e.tokenFailed) tokenError.code = e.message; }
     }
     computeStackPos();
     renderAll(loaded.source);
+    showTokenErrors();
   }
 
   function renderSetup(errorMessage) {
@@ -286,15 +310,16 @@ details summary { cursor: pointer; color: var(--muted); }
     box.hidden = false;
     box.innerHTML = `
       <h2 style="margin-top:0">${errorMessage ? 'Could not load the data' : 'One-time setup'}</h2>
-      ${errorMessage ? `<p class="bad" style="color:var(--danger)">${h(errorMessage)}</p>` : ''}
+      ${errorMessage ? `<p class="bad" style="color:var(--danger)">${h(errorMessage)}${tokenError.data ? ' Open ⚙ Settings to replace the data token.' : ''}</p>` : ''}
       <p>This page is static. The project data lives in a private GitHub repo and is fetched with your own token, in your browser.</p>
       <ol>
         <li>Accept the invitation to the data repo (<code>${h(settings.owner)}/${h(settings.repo)}</code>), if you were invited.</li>
-        <li>Create a GitHub token: <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">fine-grained</a>, repository access = the data repo and the code repo, permissions <b>Contents: read</b> and <b>Pull requests: read</b>. A classic token with <code>repo</code> also works.</li>
-        <li>Open ⚙ Settings (top right), paste the token, Save and reload.</li>
+        <li><b>Data token</b> (required): <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">fine-grained</a>, resource owner <code>${h(settings.owner)}</code>, repository access = <code>${h(settings.repo)}</code>, permission <b>Contents: read</b>. If <code>${h(settings.owner)}</code> is another user, a fine-grained token cannot reach the repo; use a <a href="https://github.com/settings/tokens/new" target="_blank" rel="noopener">classic token</a> with the <code>repo</code> scope.</li>
+        <li><b>Code repo token</b> (optional, for live PR state): fine-grained, resource owner = the organization that owns the code repo, repository access = the code repo, permission <b>Pull requests: read</b>. Without it the page shows the PR state recorded in <code>data.json</code>.</li>
+        <li>Open ⚙ Settings (top right), paste the token(s), Save and reload.</li>
       </ol>
-      <p class="dim small">The token stays in this browser's localStorage. Nothing here writes to GitHub or Jira.</p>`;
-    $('#meta').innerHTML = `<span class="${errorMessage ? 'bad' : ''}">${errorMessage ? 'load failed' : 'no token set'}</span>`;
+      <p class="dim small">Two tokens because a fine-grained token has one resource owner. A classic <code>repo</code> token covers both repos; paste it in both fields. Tokens stay in this browser's localStorage. Nothing here writes to GitHub or Jira.</p>`;
+    $('#meta').innerHTML = `<span class="${errorMessage ? 'bad' : ''}">${errorMessage ? 'load failed' : 'no data token set'}</span>`;
     ['stack', 'cards', 'checker', 'tdm', 'links'].forEach(t => { $(`#tab-${t}`).innerHTML = ''; });
   }
 
@@ -364,7 +389,9 @@ details summary { cursor: pointer; color: var(--muted); }
 
   // ---------- views ----------
   function renderAll(source) {
-    const liveText = live.state === 'live' ? `<span class="ok">PR overlay live (${live.count} PRs)</span>` : live.state === 'failed' ? `<span class="bad" title="${h(live.error)}">PR overlay failed: ${h(live.error)}</span>` : 'PR overlay off (no token)';
+    const liveText = live.state === 'live' ? `<span class="ok">PR overlay live (${live.count} PRs)</span>`
+      : live.state === 'failed' ? `<span class="bad" title="${h(live.error)}">PR overlay failed: ${h(live.error)}</span>`
+      : `<span class="dim">PR state from data.json, generated ${h(fmtDate(data.generated_at))}; add a code-repo token for live state</span>`;
     $('#meta').innerHTML = `data ${h(fmtDate(data.generated_at))} (${h(source)}) · Jira snapshot ${h(fmtDate(data.jira_snapshot_at))} · ${liveText}`;
     renderStack(); renderCards(); renderChecker(); renderTdm(); renderLinks();
   }
@@ -536,10 +563,10 @@ details summary { cursor: pointer; color: var(--muted); }
     if (!action) return;
     const pr = ds.pr ? data.prs.find(p => String(p.number) === ds.pr) : null;
     const card = ds.card ? data.cards[ds.card] : null;
-    const github = (method, path, body) => fetch('https://api.github.com' + path, { method, headers: ghHeaders(), body: body ? JSON.stringify(body) : undefined }).then(r => { if (!r.ok) throw new Error(`GitHub ${r.status}`); return r.status === 204 ? null : r.json(); });
+    const github = (method, path, body) => fetch('https://api.github.com' + path, { method, headers: ghHeaders(settings.codeToken), body: body ? JSON.stringify(body) : undefined }).then(r => { if (!r.ok) throw new Error(`GitHub ${r.status}`); return r.status === 204 ? null : r.json(); });
     const text = (action.confirm || '').replace('{n}', pr ? pr.number : '').replace('{key}', card ? card.key : '');
     if (text && !window.confirm(text)) return;
-    try { await action.run({ pr, card, data, token: settings.token, github }); toast(`${action.label}: done`); load(); }
+    try { await action.run({ pr, card, data, token: settings.codeToken, github }); toast(`${action.label}: done`); load(); }
     catch (err) { toast(`${action.label} failed: ${err.message}`); }
   }
   function showTab(name) {
@@ -550,18 +577,31 @@ details summary { cursor: pointer; color: var(--muted); }
 
   // settings panel
   function openSettings() {
-    $('#s-token').value = settings.token || ''; $('#s-owner').value = settings.owner; $('#s-repo').value = settings.repo; $('#s-path').value = settings.path;
-    $('#settings-note').textContent = settings.token ? 'A token is stored in this browser.' : 'No token stored.';
-    $('#settings').hidden = false; $('#s-token').focus();
+    $('#s-data-token').value = settings.dataToken || ''; $('#s-code-token').value = settings.codeToken || '';
+    $('#s-owner').value = settings.owner; $('#s-repo').value = settings.repo; $('#s-path').value = settings.path;
+    $('#settings-note').textContent = storedTokensNote();
+    showTokenErrors();
+    $('#settings').hidden = false; $('#s-data-token').focus();
+  }
+  function storedTokensNote() {
+    const stored = [settings.dataToken && 'data', settings.codeToken && 'code repo'].filter(Boolean);
+    return stored.length ? `Stored in this browser: ${stored.join(' and ')} token${stored.length > 1 ? 's' : ''}.` : 'No tokens stored.';
+  }
+  // Shows, under each token field, why GitHub refused that token on the last load. Runs after every load and when the panel opens.
+  function showTokenErrors() {
+    [['#s-data-token-err', tokenError.data], ['#s-code-token-err', tokenError.code]].forEach(([sel, msg]) => {
+      const note = $(sel); note.textContent = msg || ''; note.hidden = !msg;
+    });
   }
   $('#gear').addEventListener('click', openSettings);
   $('#close-settings').addEventListener('click', () => { $('#settings').hidden = true; });
   $('#save-settings').addEventListener('click', () => {
-    settings.token = $('#s-token').value.trim(); settings.owner = $('#s-owner').value.trim() || DEFAULTS.owner;
+    settings.dataToken = $('#s-data-token').value.trim(); settings.codeToken = $('#s-code-token').value.trim();
+    settings.owner = $('#s-owner').value.trim() || DEFAULTS.owner;
     settings.repo = $('#s-repo').value.trim() || DEFAULTS.repo; settings.path = $('#s-path').value.trim() || DEFAULTS.path;
     saveSettings(); $('#settings').hidden = true; load();
   });
-  $('#clear-token').addEventListener('click', () => { settings.token = ''; saveSettings(); $('#s-token').value = ''; $('#settings-note').textContent = 'Token removed.'; });
+  $('#clear-tokens').addEventListener('click', () => { settings.dataToken = ''; settings.codeToken = ''; saveSettings(); $('#s-data-token').value = ''; $('#s-code-token').value = ''; $('#settings-note').textContent = 'Tokens removed.'; });
   $('#refresh').addEventListener('click', load);
   document.addEventListener('keydown', e => { if (e.key === 'Escape') $('#settings').hidden = true; });
 
