@@ -102,6 +102,9 @@ td.nowrap { white-space: nowrap; }
 .linklist li:last-child { border-bottom: 0; }
 .kind { font-size: 11px; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
 .flag { color: var(--warn); font-size: 11.5px; }
+/* SharePoint links open the folder view in a new tab; .file names the file to open there */
+a.sp::before { content: "📁"; font-size: 11px; margin-right: 3px; }
+a.sp .file { font-family: var(--mono); font-size: 11.5px; display: inline-block; max-width: 38ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
 /* settings + setup */
 #settings { position: fixed; top: 0; right: 0; height: 100%; width: min(420px, 100%); background: var(--panel); border-left: 1px solid var(--line); padding: 16px; overflow-y: auto; z-index: 10; box-shadow: -4px 0 16px rgba(0,0,0,.12); }
 #settings[hidden] { display: none; }
@@ -159,11 +162,13 @@ details summary { cursor: pointer; color: var(--muted); }
   <input id="s-data-token" type="password" autocomplete="off" placeholder="github_pat_… or ghp_…">
   <p class="tokenerr" id="s-data-token-err" hidden></p>
   <p>Reads <code>data.json</code> from the private data repo below. Fine-grained token: resource owner = the data repo owner, repository access = the data repo, permission <b>Contents: read</b>. If the data repo belongs to another user, a fine-grained token cannot reach it; use a classic token with the <code>repo</code> scope.</p>
+  <p><a id="s-data-token-new" href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">New fine-grained token for the data repo</a> <span id="s-data-token-new-hint"></span></p>
   <label for="s-code-token">Code repo token <span class="dim">(optional)</span></label>
   <input id="s-code-token" type="password" autocomplete="off" placeholder="github_pat_… or ghp_…">
   <p class="tokenerr" id="s-code-token-err" hidden></p>
   <p>Adds live PR state from the code repo. Fine-grained token: resource owner = the organization that owns the code repo, repository access = the code repo, permission <b>Pull requests: read</b>. Without it the page shows the PR state recorded in <code>data.json</code>.</p>
-  <p>Two tokens because a fine-grained token has one resource owner. A classic token with the <code>repo</code> scope covers both repos: paste it in both fields. Tokens are stored only in this browser (localStorage) and sent only to api.github.com.</p>
+  <p><a id="s-code-token-new" href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">New fine-grained token for the code repo</a> <span id="s-code-token-new-hint"></span></p>
+  <p>Two tokens because a fine-grained token has one resource owner. One <a href="https://github.com/settings/tokens/new?scopes=repo&amp;description=AFM-1180%20dashboard" target="_blank" rel="noopener">classic token (both fields)</a> with the <code>repo</code> scope covers both repos: paste it in both fields. Tokens are stored only in this browser (localStorage) and sent only to api.github.com.</p>
   <label for="s-owner">Data repo owner</label>
   <input id="s-owner">
   <label for="s-repo">Data repo name</label>
@@ -345,7 +350,9 @@ details summary { cursor: pointer; color: var(--muted); }
   }
   const posOf = key => stackPos[key] == null ? 9999 : stackPos[key];
   const jiraLink = key => key ? `<a class="mono" href="${h(data.jira_base)}/browse/${h(key)}" target="_blank" rel="noopener">${h(key)}</a>` : '';
-  const ext = (url, label) => url ? `<a href="${h(url)}" target="_blank" rel="noopener">${h(label)}</a>` : '';
+  const isSp = url => /\.sharepoint\.com\//.test(url || '');
+  // SharePoint opens .md/.patch/.txt as downloads, so every SharePoint link is the folder view; `file` is the file to open there.
+  const spLink = (url, label, file) => url ? `<a class="sp" href="${h(url)}" target="_blank" rel="noopener" title="${h(file ? `SharePoint folder; open ${file} there` : 'SharePoint folder')}">${h(label)}${file ? ` <span class="file">${h(file)}</span>` : ''}</a>` : '';
   function statusChip(card) {
     if (!card) return '';
     const s = card.status || 'unknown';
@@ -432,7 +439,7 @@ details summary { cursor: pointer; color: var(--muted); }
           <div class="level-title"><span class="chip short">${h(lvl.short)}</span> ${jiraLink(lvl.key)} <b>${h(lvl.title)}</b></div>
           <div class="level-meta">${statusChip(c)} ${workChip(c)} ${prChip(lvl.pr)} ${prActions(lvl.pr, c)} ${closedPrs(lvl.closed_prs)} ${reviewBadge(c)} ${lvl.checker_key ? `<span class="dim">checker</span> ${jiraLink(lvl.checker_key)} ${statusChip(cards[lvl.checker_key])}` : ''} ${cardActions(c)}</div>
           <div class="level-sub">${branchHtml(lvl)} <span>→ into <code>${h(shortBranch(lvl.base_branch))}</code></span></div>
-          <div class="level-sub">TDM builds <b>${h(tdm.base_build || '?')}</b> → <b>${h(tdm.tip_build || '?')}</b>${tdm.run_id ? ` · run ${h(tdm.run_id)}` : ' · no run yet'}${tdm.result ? ` · ${h(tdm.result)}` : ''} · ${ext(c.spec_url, 'docs')} · <button class="mini" data-brief="${h(c.key)}">brief</button></div>
+          <div class="level-sub">TDM builds <b>${h(tdm.base_build || '?')}</b> → <b>${h(tdm.tip_build || '?')}</b>${tdm.run_id ? ` · run ${h(tdm.run_id)}` : ' · no run yet'}${tdm.result ? ` · ${h(tdm.result)}` : ''} · ${spLink(c.spec_url, 'docs', c.spec_file)} · <button class="mini" data-brief="${h(c.key)}">brief</button></div>
           <div class="brief" id="brief-${h(c.key)}" hidden>${briefHtml(c)}</div>
           ${reviewList(c)}
         </div>
@@ -446,7 +453,7 @@ details summary { cursor: pointer; color: var(--muted); }
     const chk = c.checker_key ? data.cards[c.checker_key] : null;
     return `<li class="card-row">
       <div class="row-main"><span class="pos">${pos}</span>${statusChip(c)} ${jiraLink(c.key)} <span class="chip short">${h(c.short || '')}</span> <span class="title">${h(c.title)}</span> ${reviewBadge(c)}</div>
-      <div class="row-side">${workChip(c)} ${prChip(c.pr)} ${prActions(c.pr, c)} ${closedPrs(c.closed_prs)} ${c.branch_exists ? `<a href="${h(c.branch_url)}" target="_blank" rel="noopener"><code>${h(shortBranch(c.branch))}</code></a>` : ''} ${chk ? `<span class="dim">check</span> ${jiraLink(chk.key)} ${statusChip(chk)}` : ''} ${ext(c.spec_url, 'spec')}${c.evidence_url ? ` · ${ext(c.evidence_url, 'evidence')}` : ''} <button class="mini" data-brief="${h(c.key)}">brief</button> ${cardActions(c)}</div>
+      <div class="row-side">${workChip(c)} ${prChip(c.pr)} ${prActions(c.pr, c)} ${closedPrs(c.closed_prs)} ${c.branch_exists ? `<a href="${h(c.branch_url)}" target="_blank" rel="noopener"><code>${h(shortBranch(c.branch))}</code></a>` : ''} ${chk ? `<span class="dim">check</span> ${jiraLink(chk.key)} ${statusChip(chk)}` : ''} ${spLink(c.spec_url, 'spec', c.spec_file)}${c.evidence_url ? ` · ${spLink(c.evidence_url, 'evidence', c.evidence_file)}` : ''} <button class="mini" data-brief="${h(c.key)}">brief</button> ${cardActions(c)}</div>
       <div class="brief" id="brief-${h(c.key)}" hidden>${briefHtml(c)}</div>
       ${reviewList(c)}
     </li>`;
@@ -496,7 +503,7 @@ details summary { cursor: pointer; color: var(--muted); }
           <td>${h(c.assignee || '')}</td>
           <td class="nowrap">${prChip(c.pr)}<div>${prActions(c.pr, c)}</div>${closedPrs(c.closed_prs)}</td>
           <td class="nowrap">${cpCard ? `${jiraLink(cp)}<br>${statusChip(cpCard)}` : ''}</td>
-          <td class="nowrap">${ext(c.spec_url, 'spec')}${c.evidence_url ? `<br>${ext(c.evidence_url, 'evidence')}` : ''}</td>
+          <td class="nowrap">${spLink(c.spec_url, 'spec', c.spec_file)}${c.evidence_url ? `<br>${spLink(c.evidence_url, 'evidence', c.evidence_file)}` : ''}</td>
         </tr>`;
       }).join('');
       $('#cards-count').textContent = `${rows.length} of ${cards.length} cards`;
@@ -527,7 +534,7 @@ details summary { cursor: pointer; color: var(--muted); }
         const prog = c.programmer_key ? data.cards[c.programmer_key] : null;
         return `<li class="card-row">
           <div class="row-main">${statusChip(c)} ${jiraLink(c.key)} <span class="chip short">${h(c.short || '')}</span> <span class="title">${h(c.title)}</span> ${reviewBadge(c)}</div>
-          <div class="row-side">${prog ? `<span class="dim">programmer</span> ${jiraLink(prog.key)} ${statusChip(prog)} ${prChip(prog.pr)} ${prActions(prog.pr, prog)} ${reviewBadge(prog)} ${prog.branch_exists ? `<a href="${h(prog.branch_url)}" target="_blank" rel="noopener"><code>${h(shortBranch(prog.branch))}</code></a>` : ''}` : ''} ${ext(c.spec_url, 'check procedure (spec)')}${c.evidence_url ? ` · ${ext(c.evidence_url, 'evidence')}` : ''} <button class="mini" data-brief="${h(c.key)}">brief</button> ${cardActions(c)}</div>
+          <div class="row-side">${prog ? `<span class="dim">programmer</span> ${jiraLink(prog.key)} ${statusChip(prog)} ${prChip(prog.pr)} ${prActions(prog.pr, prog)} ${reviewBadge(prog)} ${prog.branch_exists ? `<a href="${h(prog.branch_url)}" target="_blank" rel="noopener"><code>${h(shortBranch(prog.branch))}</code></a>` : ''}` : ''} ${spLink(c.spec_url, 'check procedure (spec)', c.spec_file)}${c.evidence_url ? ` · ${spLink(c.evidence_url, 'evidence', c.evidence_file)}` : ''} <button class="mini" data-brief="${h(c.key)}">brief</button> ${cardActions(c)}</div>
           <div class="brief" id="brief-${h(c.key)}" hidden>${briefHtml(c)}</div>
           ${reviewList(c)}${prog ? reviewList(prog) : ''}
         </li>`;
@@ -602,7 +609,7 @@ details summary { cursor: pointer; color: var(--muted); }
   function renderLinks() {
     let out = '';
     Object.entries(data.links).forEach(([group, links]) => {
-      out += `<h2>${h(group)}</h2><div class="panel"><ul class="linklist">${links.map(l => `<li><a href="${h(l.url)}" target="_blank" rel="noopener">${h(l.label)}</a> <span class="kind">${h(l.kind || 'page')}</span>${l.note ? ` <span class="dim small">${h(l.note)}</span>` : ''}${l.url_unverified ? ' <span class="flag">URL not verified</span>' : ''}</li>`).join('')}</ul></div>`;
+      out += `<h2>${h(group)}</h2><div class="panel"><ul class="linklist">${links.map(l => `<li>${isSp(l.url) ? spLink(l.url, l.label, l.file) : `<a href="${h(l.url)}" target="_blank" rel="noopener">${h(l.label)}</a>`} <span class="kind">${h(l.kind || 'page')}</span>${l.note ? ` <span class="dim small">${h(l.note)}</span>` : ''}${l.url_unverified ? ' <span class="flag">URL not verified</span>' : ''}</li>`).join('')}</ul></div>`;
     });
     const epic = data.epic || {};
     out += `<h2>Branches on origin</h2><div class="panel"><ul class="linklist">${(data.branches || []).map(b => `<li><a href="https://github.com/${h(data.code_repo)}/tree/${h(b)}" target="_blank" rel="noopener"><code>${h(b)}</code></a></li>`).join('') || '<li class="dim">none</li>'}</ul></div>`;
@@ -666,6 +673,10 @@ details summary { cursor: pointer; color: var(--muted); }
     $('#s-data-token').value = settings.dataToken || ''; $('#s-code-token').value = settings.codeToken || '';
     $('#s-owner').value = settings.owner; $('#s-repo').value = settings.repo; $('#s-path').value = settings.path;
     $('#settings-note').textContent = storedTokensNote();
+    $('#s-data-token-new').textContent = `New fine-grained token for ${settings.owner}/${settings.repo}`;
+    $('#s-data-token-new-hint').textContent = `(resource owner ${settings.owner}, permission Contents: read)`;
+    $('#s-code-token-new').textContent = `New fine-grained token for ${data ? data.code_repo : 'the code repo'}`;
+    $('#s-code-token-new-hint').textContent = '(resource owner = the organization that owns it, permission Pull requests: read)';
     showTokenErrors();
     $('#settings').hidden = false; $('#s-data-token').focus();
   }

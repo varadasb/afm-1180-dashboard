@@ -13,6 +13,8 @@ Two tokens because a fine-grained GitHub token has exactly one resource owner. T
 | Data token (required) | reading `data.json` from `varadasb/afm-1180-dashboard-data` | resource owner `varadasb`, repository `afm-1180-dashboard-data`, permission Contents: Read-only |
 | Code repo token (optional) | live PR state (draft / ready / merged / approved) from the code repo | resource owner `moodysanalytics`, repository `AXIS-Development`, permission Pull requests: Read-only |
 
+Create them here: [fine-grained token for the data repo](https://github.com/settings/personal-access-tokens/new) (resource owner = the data repo owner, permission Contents: read), [fine-grained token for the code repo](https://github.com/settings/personal-access-tokens/new) (resource owner = the organization that owns it, permission Pull requests: read), or one [classic token (both fields)](https://github.com/settings/tokens/new?scopes=repo&description=AFM-1180%20dashboard) with the `repo` scope. The same three links sit next to the fields in Settings (gear, top right).
+
 Without a code repo token the page makes no PR calls and shows the PR state recorded in `data.json`; the header says so and gives the generation time. A token GitHub refuses (401, 403, or 404 = the token has no access to the repo) is named in the header or the setup box and flagged under its own field in Settings.
 
 One-token alternative: a classic token (https://github.com/settings/tokens/new) with the `repo` scope reads both repos. Paste it in both fields. Works only if the organization allows classic tokens; if it enforces SAML SSO, authorize the token for the org ("Configure SSO" on the tokens page).
@@ -52,6 +54,8 @@ Clone this repo, copy or symlink the data repo's `data.json` next to `index.html
 | TDM | The builds table and the comparisons table |
 | Links | Every document, Jira filter and GitHub link, grouped |
 
+SharePoint links (📁: spec, evidence, docs, the SharePoint group in Links) open the containing folder in the SharePoint library view, in a new tab. The file to open there is named in the link text (`spec_file` / `evidence_file` / `file` in `data.json`). A direct link to a `.md` file makes SharePoint download it, so the data file never contains one; `check_data.py` in the data repo rejects it.
+
 Chips: Backlog ⚪, In Progress 🔵, In Review 🟡, Ready to Start 🟠, Done ✅; PR draft 📝, ready 🟢, merged 🟣, approved ✔.
 
 Review badges: a card with open review items (`needs_review` in `data.json`) shows `🧮 actuarial review` when any of its items needs domain judgement, else `📝 decision`, in the Stack, Cards and Checker views. Hover shows the item sentences, click expands them under the row. The items themselves (`review_items[]`) live in the data repo; closing one is an edit there.
@@ -65,5 +69,6 @@ Quick actions (v1): each open PR has buttons that copy a ready `gh` command (`re
 | v1 | Links, status chips, live PR overlay, copy-to-clipboard `gh` commands |
 | v1.1 | Separate data and code-repo tokens; PR state from `data.json` when no code-repo token is set |
 | v1.2 | Review tab and per-card review badges, driven by `review_items[]` in the data file |
+| v1.3 | Token-creation links in Settings; SharePoint links open the folder view in a new tab with the file named |
 | v2 | GitHub API writes from the page: mark ready, approve, comment; Jira transitions via deep links |
 | v3 | Scheduled data refresh, notifications when a card becomes ready to check |
