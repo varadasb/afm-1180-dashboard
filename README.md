@@ -51,6 +51,7 @@ Clone this repo, copy or symlink the data repo's `data.json` next to `index.html
 | Cards | All cards as a table with filters: build, type, assignee, status, text |
 | Checker | The checker's cards grouped ready-to-start / in progress / done / waiting, with the programmer PR and the spec link |
 | Review | Open review items (questions that need a human decision) grouped by card in stack order, with options, default, owner and a flag for items that need domain judgement; filters by owner and kind; decided items collapsed below. The tab label carries the open count |
+| Decisions | The decisions Varada has to make: section 11 of the structure plan plus her own `decision` items from Review, from `decisions[]` in `data.json`. One table, open first: Id, Decision, Default (highlighted; what the plan does if nobody objects), Status, Links (PR and card chips, plus the merged review ids), and a `Copy reply` button per open row that copies `Id: default` for pasting into chat. Toggle open / all. The tab label carries the open count (`decision_counts.open`). The page does not write; the choice is recorded in the plan |
 | TDM | The builds table and the comparisons table |
 | Links | Every document, Jira filter and GitHub link, grouped |
 
@@ -70,5 +71,6 @@ Quick actions (v1): each open PR has buttons that copy a ready `gh` command (`re
 | v1.1 | Separate data and code-repo tokens; PR state from `data.json` when no code-repo token is set |
 | v1.2 | Review tab and per-card review badges, driven by `review_items[]` in the data file |
 | v1.3 | Token-creation links in Settings; SharePoint links open the folder view in a new tab with the file named |
+| v1.4 | Decisions tab (plan section 11 merged with Varada's review decisions), copy-reply buttons, version in the footer |
 | v2 | GitHub API writes from the page: mark ready, approve, comment; Jira transitions via deep links |
 | v3 | Scheduled data refresh, notifications when a card becomes ready to check |

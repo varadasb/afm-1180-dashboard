@@ -119,6 +119,11 @@ a.sp .file { font-family: var(--mono); font-size: 11.5px; display: inline-block;
 #toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 8px 14px; border-radius: 6px; font-size: 12.5px; max-width: calc(100% - 32px); word-break: break-all; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 20; }
 #toast.show { opacity: 1; }
 details summary { cursor: pointer; color: var(--muted); }
+/* decisions */
+td.dflt { background: var(--code); border-left: 3px solid var(--accent); }
+.chip.open { border: 1px solid var(--warn); }
+.chip.decided { border: 1px solid var(--ok); }
+footer { margin-top: 28px; color: var(--muted); font-size: 12px; text-align: center; }
 @media (max-width: 560px) {
   .level { margin-left: 4px; padding-left: 14px; }
   .row-side, .brief { margin-left: 0; }
@@ -139,6 +144,7 @@ details summary { cursor: pointer; color: var(--muted); }
   <button data-tab="cards">Cards</button>
   <button data-tab="checker">Checker</button>
   <button data-tab="review">Review</button>
+  <button data-tab="decisions">Decisions</button>
   <button data-tab="tdm">TDM</button>
   <button data-tab="links">Links</button>
 </nav>
@@ -149,6 +155,7 @@ details summary { cursor: pointer; color: var(--muted); }
   <section id="tab-cards" class="tab"></section>
   <section id="tab-checker" class="tab"></section>
   <section id="tab-review" class="tab"></section>
+  <section id="tab-decisions" class="tab"></section>
   <section id="tab-tdm" class="tab"></section>
   <section id="tab-links" class="tab"></section>
 </main>
@@ -182,6 +189,7 @@ details summary { cursor: pointer; color: var(--muted); }
   <p id="settings-note"></p>
 </aside>
 
+<footer>AFM-1180 Dashboard v1.4</footer>
 <div id="toast" role="status"></div>
 
 <script src="actions.js"></script>
@@ -195,7 +203,7 @@ details summary { cursor: pointer; color: var(--muted); }
   const STATUS_ICON = { 'Backlog': '⚪', 'In Progress': '🔵', 'In Review': '🟡', 'Ready to Start': '🟠', 'Done': '✅' };
   const WORK_LABEL = { done: 'done', partly: 'partly', wip: 'wip', pending: 'pending', na: 'n/a' };
   const REVIEW_BADGE = { actuarial: { icon: '🧮', label: 'actuarial review', cls: 'actuarial' }, decision: { icon: '📝', label: 'decision', cls: 'decision' } };
-  const TABS = ['stack', 'cards', 'checker', 'review', 'tdm', 'links'];
+  const TABS = ['stack', 'cards', 'checker', 'review', 'decisions', 'tdm', 'links'];
   const $ = sel => document.querySelector(sel);
   const h = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -424,7 +432,7 @@ details summary { cursor: pointer; color: var(--muted); }
       : live.state === 'failed' ? `<span class="bad" title="${h(live.error)}">PR overlay failed: ${h(live.error)}</span>`
       : `<span class="dim">PR state from data.json, generated ${h(fmtDate(data.generated_at))}; add a code-repo token for live state</span>`;
     $('#meta').innerHTML = `data ${h(fmtDate(data.generated_at))} (${h(source)}) · Jira snapshot ${h(fmtDate(data.jira_snapshot_at))} · ${liveText}`;
-    renderStack(); renderCards(); renderChecker(); renderReview(); renderTdm(); renderLinks();
+    renderStack(); renderCards(); renderChecker(); renderReview(); renderDecisions(); renderTdm(); renderLinks();
   }
   function fmtDate(iso) { return iso ? iso.replace('T', ' ').replace(/([+-]\d\d:\d\d|Z)$/, '') : '?'; }
 
@@ -446,7 +454,6 @@ details summary { cursor: pointer; color: var(--muted); }
         ${lvl.children.length ? `<ol class="stack-list">${lvl.children.map((k, idx) => cardRow(cards[k], idx + 1)).join('')}</ol>` : '<div class="dim small" style="margin-top:8px">Epic branch. The integration branches below merge into it, one after the other.</div>'}
       </div></div>`;
     });
-    out += decisionsHtml();
     $('#tab-stack').innerHTML = out;
   }
   function cardRow(c, pos) {
@@ -458,11 +465,6 @@ details summary { cursor: pointer; color: var(--muted); }
       ${reviewList(c)}
     </li>`;
   }
-  function decisionsHtml() {
-    if (!data.decisions || !data.decisions.length) return '';
-    return `<details class="panel" style="margin-top:6px"><summary>Decisions (${data.decisions.length})</summary><div class="tablewrap"><table><thead><tr><th>#</th><th>Decision</th><th>Default</th><th>Gates cut</th></tr></thead><tbody>${data.decisions.map(d => `<tr><td class="nowrap mono">${h(d.id)}</td><td>${h(d.decision)}</td><td>${h(d.default)}</td><td>${d.gates_cut ? '✅' : ''}</td></tr>`).join('')}</tbody></table></div></details>`;
-  }
-
   function renderCards() {
     const cards = Object.values(data.cards).sort((a, b) => posOf(a.key) - posOf(b.key) || a.key.localeCompare(b.key, undefined, { numeric: true }));
     const uniq = arr => Array.from(new Set(arr.filter(Boolean))).sort();
@@ -595,6 +597,47 @@ details summary { cursor: pointer; color: var(--muted); }
     </tr>`;
   }
 
+  // Decisions: data.decisions = section 11 of the structure plan plus Varada's own decision items from review_items.
+  // The page only reads; a choice is pasted into chat ("Copy reply") and recorded in the plan by Claude.
+  const md = text => h(text).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/`([^`]+)`/g, '<code>$1</code>');
+  function renderDecisions() {
+    const all = (data.decisions || []).slice();
+    const num = id => parseInt(String(id).replace(/\D/g, ''), 10) || 0;
+    // open first; plan decisions (D) before review-item ones (R); highest id first
+    all.sort((a, b) => (a.status !== 'open') - (b.status !== 'open') || (a.id[0] !== 'D') - (b.id[0] !== 'D') || num(b.id) - num(a.id));
+    const open = all.filter(x => x.status === 'open');
+    const tabButton = document.querySelector('.tabs button[data-tab="decisions"]');
+    if (tabButton) tabButton.textContent = `Decisions (${open.length})`;
+    const plan = ((data.links || {}).SharePoint || []).find(l => l.file === 'AFM-1180 structure.md');
+    $('#tab-decisions').innerHTML = `
+      <p class="dim small">${plan ? spLink(plan.url, 'AFM-1180 structure.md (SharePoint)') + ' · ' : ''}Section 11 of the plan plus the decision items owned by ${h(data.people.programmer.name.split(' ')[0])} in Review. <b>Default</b> is what the plan does if nobody objects. <b>Copy reply</b> copies "Id: default" for chat; edit the choice there and Claude records it in the plan. This page does not write.</p>
+      <div class="filters"><label><input type="checkbox" id="d-open" checked> open only</label> <span class="dim small" id="d-count"></span></div>
+      <div class="panel tablewrap"><table><thead><tr><th>Id</th><th>Decision</th><th>Default</th><th>Status</th><th>Links</th><th></th></tr></thead><tbody id="decisions-body"></tbody></table></div>`;
+    const apply = () => {
+      const rows = $('#d-open').checked ? open : all;
+      $('#decisions-body').innerHTML = rows.map(decisionRow).join('') || '<tr><td colspan="6" class="dim">none</td></tr>';
+      $('#d-count').textContent = `${rows.length} of ${all.length} · ${open.length} open, ${all.length - open.length} decided`;
+    };
+    $('#d-open').addEventListener('change', apply);
+    apply();
+  }
+  function decisionRow(x) {
+    const prs = (x.prs || []).map(n => { const pr = data.prs.find(p => p.number === n); return pr ? prChip(pr) : `<a class="chip pr dim" href="https://github.com/${h(data.code_repo)}/pull/${h(n)}" target="_blank" rel="noopener" title="not in the data file">#${h(n)}</a>`; });
+    const cards = (x.cards || []).map(k => jiraLink(k));
+    const reviews = (x.review_ids || []).map(r => `<button class="mini" data-goto-tab="review" title="open the Review tab">${h(r)}</button>`);
+    const links = prs.concat(cards, reviews).join(' ') || '<span class="dim">–</span>';
+    const status = x.status === 'open' ? '<span class="chip open">⏳ open</span>' : '<span class="chip decided">✅ decided</span>';
+    const decided = x.status !== 'open' && x.decided && x.decided !== x.default ? `<div class="small">${md(x.decided)}</div>` : '';
+    return `<tr>
+      <td class="nowrap mono">${h(x.id)}</td>
+      <td>${md(x.question)}<div class="small dim">${h(x.source)}</div></td>
+      <td class="dflt">${md(x.default)}</td>
+      <td class="nowrap">${status}${decided}</td>
+      <td>${links}</td>
+      <td class="nowrap">${x.status === 'open' ? `<button class="mini" data-copy="${h(`${x.id}: ${x.default}`)}" title="copy to paste into chat">Copy reply</button>` : ''}</td>
+    </tr>`;
+  }
+
   function renderTdm() {
     const table = (title, rows) => {
       if (!rows || !rows.length) return `<h2>${h(title)}</h2><div class="dim">none</div>`;
@@ -648,6 +691,8 @@ details summary { cursor: pointer; color: var(--muted); }
     }
     const v2 = e.target.closest('[data-v2]');
     if (v2) { runV2(v2.dataset); return; }
+    const goto = e.target.closest('[data-goto-tab]');
+    if (goto) { showTab(goto.dataset.gotoTab); return; }
     const tab = e.target.closest('.tabs button');
     if (tab) { showTab(tab.dataset.tab); }
   });
