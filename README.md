@@ -72,5 +72,6 @@ Quick actions (v1): each open PR has buttons that copy a ready `gh` command (`re
 | v1.2 | Review tab and per-card review badges, driven by `review_items[]` in the data file |
 | v1.3 | Token-creation links in Settings; SharePoint links open the folder view in a new tab with the file named |
 | v1.4 | Decisions tab (plan section 11 merged with Varada's review decisions), copy-reply buttons, version in the footer |
+| v1.5 | Impact row under each decision: the cards / PRs it touches (chips) and how, from `decisions[].affects` (Affects column of plan §11, `impact` of a review item) |
 | v2 | GitHub API writes from the page: mark ready, approve, comment; Jira transitions via deep links |
 | v3 | Scheduled data refresh, notifications when a card becomes ready to check |
