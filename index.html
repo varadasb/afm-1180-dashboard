@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>AFM-1180 Dashboard</title>
+<style>
+:root {
+  --bg: #f4f6f8; --panel: #ffffff; --text: #1c1f24; --muted: #5f6772; --line: #d9dee5;
+  --accent: #2f6feb; --chip: #eaeef3; --hover: #f0f3f7; --code: #eef1f5; --danger: #b3261e;
+  --ok: #1e7f3c; --warn: #9a6700; --shadow: 0 1px 2px rgba(0,0,0,.06);
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --mono: ui-monospace, Consolas, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1216; --panel: #171b21; --text: #e6e8eb; --muted: #9aa3ad; --line: #2a3038;
+    --accent: #7aa7ff; --chip: #232932; --hover: #1e242c; --code: #1f252d; --danger: #ff7b6e;
+    --ok: #5bd07a; --warn: #e3b341; --shadow: none;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1216; --panel: #171b21; --text: #e6e8eb; --muted: #9aa3ad; --line: #2a3038;
+  --accent: #7aa7ff; --chip: #232932; --hover: #1e242c; --code: #1f252d; --danger: #ff7b6e;
+  --ok: #5bd07a; --warn: #e3b341; --shadow: none;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--text); font: 14px/1.45 var(--sans); padding: 0 16px 48px; max-width: 1280px; margin: 0 auto; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code, .mono { font-family: var(--mono); font-size: 12.5px; }
+code { background: var(--code); padding: 1px 5px; border-radius: 4px; word-break: break-all; }
+button { font: inherit; color: inherit; cursor: pointer; }
+header { display: flex; align-items: center; gap: 12px; padding: 14px 0 8px; flex-wrap: wrap; }
+h1 { font-size: 20px; margin: 0; }
+h2 { font-size: 16px; margin: 18px 0 8px; }
+h3 { font-size: 14px; margin: 14px 0 6px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .03em; }
+.meta { color: var(--muted); font-size: 12px; flex: 1 1 240px; }
+.meta .bad { color: var(--danger); }
+.meta .ok { color: var(--ok); }
+.iconbtn { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px; box-shadow: var(--shadow); }
+.iconbtn:hover { background: var(--hover); }
+.tabs { display: flex; gap: 2px; flex-wrap: wrap; border-bottom: 1px solid var(--line); margin-bottom: 14px; }
+.tabs button { background: none; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; padding: 8px 12px; color: var(--muted); }
+.tabs button.active { color: var(--text); border-bottom-color: var(--accent); font-weight: 600; }
+.tab { display: none; }
+.tab.active { display: block; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; box-shadow: var(--shadow); }
+.dim { color: var(--muted); }
+.small { font-size: 12px; }
+.chip { display: inline-block; padding: 0 7px; border-radius: 999px; background: var(--chip); font-size: 12px; white-space: nowrap; line-height: 1.6; vertical-align: middle; }
+.chip.short { font-family: var(--mono); font-weight: 600; }
+.chip.pr { border: 1px solid var(--line); }
+.chip.pr.ready { border-color: var(--ok); }
+.chip.pr.merged { border-color: #8e5cd9; }
+.chip.pr.closed { opacity: .6; text-decoration: line-through; }
+.chip.dim { opacity: .65; }
+.mini { background: var(--panel); border: 1px solid var(--line); border-radius: 5px; padding: 0 6px; font-size: 11.5px; line-height: 1.6; color: var(--muted); vertical-align: middle; }
+.mini:hover { background: var(--hover); color: var(--text); }
+.actions { display: inline-flex; gap: 3px; flex-wrap: wrap; vertical-align: middle; }
+/* stack */
+.level { position: relative; margin: 0 0 0 10px; padding: 0 0 18px 18px; border-left: 2px solid var(--line); }
+.level:last-of-type { border-left-color: transparent; }
+.level::before { content: ""; position: absolute; left: -7px; top: 14px; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); }
+.level .panel { padding-top: 10px; }
+.level-head { display: flex; flex-direction: column; gap: 4px; }
+.level-title { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 15px; }
+.level-meta, .level-sub { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12.5px; }
+.level-sub { color: var(--muted); }
+.stack-list { list-style: none; margin: 10px 0 0; padding: 0; border-top: 1px solid var(--line); }
+.card-row { padding: 7px 0; border-bottom: 1px solid var(--line); }
+.card-row:last-child { border-bottom: 0; }
+.row-main { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.row-main .pos { color: var(--muted); font-family: var(--mono); font-size: 11.5px; min-width: 1.6em; }
+.row-side { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 4px 0 0 1.9em; font-size: 12.5px; }
+.brief { margin: 6px 0 2px 1.9em; padding: 8px 10px; background: var(--code); border-radius: 6px; font-size: 12.5px; white-space: pre-wrap; }
+.brief b { color: var(--text); }
+.arrow { color: var(--muted); font-size: 12px; margin: -12px 0 6px 6px; }
+/* tables */
+.tablewrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; white-space: nowrap; position: sticky; top: 0; background: var(--panel); }
+tbody tr:hover { background: var(--hover); }
+td.nowrap { white-space: nowrap; }
+.filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.filters select, .filters input, #settings input { font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; }
+.filters input[type=search] { flex: 1 1 160px; min-width: 120px; }
+/* checker */
+.group { margin-bottom: 14px; }
+.group h3 { margin-top: 6px; }
+/* links */
+.linklist { list-style: none; margin: 0; padding: 0; }
+.linklist li { padding: 5px 0; border-bottom: 1px solid var(--line); display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.linklist li:last-child { border-bottom: 0; }
+.kind { font-size: 11px; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
+.flag { color: var(--warn); font-size: 11.5px; }
+/* settings + setup */
+#settings { position: fixed; top: 0; right: 0; height: 100%; width: min(420px, 100%); background: var(--panel); border-left: 1px solid var(--line); padding: 16px; overflow-y: auto; z-index: 10; box-shadow: -4px 0 16px rgba(0,0,0,.12); }
+#settings[hidden] { display: none; }
+#settings label { display: block; margin: 12px 0 4px; font-weight: 600; font-size: 12.5px; }
+#settings input { width: 100%; }
+#settings .row { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+#settings p { font-size: 12.5px; color: var(--muted); margin: 6px 0; }
+.setup { border-left: 4px solid var(--accent); }
+.setup ol { margin: 6px 0 0; padding-left: 20px; }
+.setup li { margin: 4px 0; }
+#toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 8px 14px; border-radius: 6px; font-size: 12.5px; max-width: calc(100% - 32px); word-break: break-all; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 20; }
+#toast.show { opacity: 1; }
+details summary { cursor: pointer; color: var(--muted); }
+@media (max-width: 560px) {
+  .level { margin-left: 4px; padding-left: 14px; }
+  .row-side, .brief { margin-left: 0; }
+  th, td { padding: 5px 6px; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>AFM-1180 Dashboard</h1>
+  <div class="meta" id="meta">Loading…</div>
+  <button class="iconbtn" id="refresh" title="Reload data and live PR state">↻ Refresh</button>
+  <button class="iconbtn" id="gear" title="Settings" aria-label="Settings">⚙</button>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button data-tab="stack" class="active">Stack</button>
+  <button data-tab="cards">Cards</button>
+  <button data-tab="checker">Checker</button>
+  <button data-tab="tdm">TDM</button>
+  <button data-tab="links">Links</button>
+</nav>
+
+<main>
+  <section id="setup" class="panel setup" hidden></section>
+  <section id="tab-stack" class="tab active"></section>
+  <section id="tab-cards" class="tab"></section>
+  <section id="tab-checker" class="tab"></section>
+  <section id="tab-tdm" class="tab"></section>
+  <section id="tab-links" class="tab"></section>
+</main>
+
+<aside id="settings" hidden aria-label="Settings">
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <h2 style="margin:0">Settings</h2>
+    <button class="iconbtn" id="close-settings" aria-label="Close">✕</button>
+  </div>
+  <label for="s-token">GitHub token</label>
+  <input id="s-token" type="password" autocomplete="off" placeholder="github_pat_… or ghp_…">
+  <p>Stored only in this browser (localStorage). Never sent anywhere except api.github.com.</p>
+  <p>Needs: read access to the private data repo below (Contents: read) and read access to the code repo's pull requests (Pull requests: read) for the live PR overlay. A classic token with the <code>repo</code> scope also works.</p>
+  <label for="s-owner">Data repo owner</label>
+  <input id="s-owner">
+  <label for="s-repo">Data repo name</label>
+  <input id="s-repo">
+  <label for="s-path">Data file path</label>
+  <input id="s-path">
+  <div class="row">
+    <button class="iconbtn" id="save-settings">Save and reload</button>
+    <button class="iconbtn" id="clear-token">Forget token</button>
+  </div>
+  <p id="settings-note"></p>
+</aside>
+
+<div id="toast" role="status"></div>
+
+<script src="actions.js"></script>
+<script>
+(function () {
+  'use strict';
+  const DEFAULTS = { owner: 'varadasb', repo: 'afm-1180-dashboard-data', path: 'data.json', token: '' };
+  const LS_KEY = 'dashboard.settings';
+  const STATUS_ICON = { 'Backlog': '⚪', 'In Progress': '🔵', 'In Review': '🟡', 'Ready to Start': '🟠', 'Done': '✅' };
+  const WORK_LABEL = { done: 'done', partly: 'partly', wip: 'wip', pending: 'pending', na: 'n/a' };
+  const $ = sel => document.querySelector(sel);
+  const h = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  let settings = loadSettings();
+  let data = null;
+  let live = { state: 'off', count: 0, error: null };
+  let stackPos = {};
+
+  function loadSettings() {
+    try { return Object.assign({}, DEFAULTS, JSON.parse(localStorage.getItem(LS_KEY) || '{}')); }
+    catch (e) { return Object.assign({}, DEFAULTS); }
+  }
+  function saveSettings() { try { localStorage.setItem(LS_KEY, JSON.stringify(settings)); } catch (e) { /* private mode */ } }
+
+  // ---------- data loading ----------
+  async function fetchData() {
+    try {
+      const r = await fetch('./data.json', { cache: 'no-store' });
+      if (r.ok) return { data: await r.json(), source: 'same-origin' };
+    } catch (e) { /* not served next to the page */ }
+    if (!settings.token) return { data: null, source: 'none' };
+    const url = `https://api.github.com/repos/${settings.owner}/${settings.repo}/contents/${settings.path}`;
+    const r = await fetch(url, { headers: ghHeaders('application/vnd.github.raw+json'), cache: 'no-store' });
+    if (!r.ok) throw new Error(`GitHub ${r.status} loading ${settings.owner}/${settings.repo}/${settings.path}`);
+    return { data: await r.json(), source: 'github' };
+  }
+  function ghHeaders(accept) {
+    return { 'Authorization': `Bearer ${settings.token}`, 'Accept': accept || 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' };
+  }
+
+  async function fetchLivePRs() {
+    const author = data.people.programmer.github;
+    const prefix = data.branch_prefix;
+    try {
+      return await graphqlPRs(author, prefix);
+    } catch (e) {
+      return await restPRs(prefix);
+    }
+  }
+  async function graphqlPRs(author, prefix) {
+    const query = `query($q:String!,$after:String){ search(query:$q,type:ISSUE,first:100,after:$after){ pageInfo{hasNextPage endCursor} nodes{ ... on PullRequest{ number title url state isDraft reviewDecision headRefName baseRefName mergedAt } } } }`;
+    const q = `repo:${data.code_repo} is:pr author:${author}`;
+    let after = null; const out = [];
+    do {
+      const r = await fetch('https://api.github.com/graphql', { method: 'POST', headers: ghHeaders(), body: JSON.stringify({ query, variables: { q, after } }) });
+      const j = await r.json();
+      if (!r.ok || j.errors) throw new Error((j.errors && j.errors[0].message) || `GraphQL ${r.status}`);
+      const s = j.data.search;
+      s.nodes.forEach(n => { if (n.headRefName && n.headRefName.startsWith(prefix)) out.push(n); });
+      after = s.pageInfo.hasNextPage ? s.pageInfo.endCursor : null;
+    } while (after);
+    return out;
+  }
+  async function restPRs(prefix) {
+    // Fallback when GraphQL is refused: the 300 most recently updated PRs. reviewDecision stays as in data.json.
+    const out = [];
+    for (let page = 1; page <= 3; page++) {
+      const r = await fetch(`https://api.github.com/repos/${data.code_repo}/pulls?state=all&sort=updated&direction=desc&per_page=100&page=${page}`, { headers: ghHeaders() });
+      if (!r.ok) throw new Error(`GitHub ${r.status} listing pull requests`);
+      const list = await r.json();
+      list.forEach(p => {
+        if (!p.head || !p.head.ref.startsWith(prefix)) return;
+        out.push({ number: p.number, title: p.title, url: p.html_url, state: p.merged_at ? 'MERGED' : p.state.toUpperCase(), isDraft: p.draft, reviewDecision: undefined, headRefName: p.head.ref, baseRefName: p.base.ref, mergedAt: p.merged_at });
+      });
+      if (list.length < 100) break;
+    }
+    return out;
+  }
+
+  function overlayPRs(livePRs) {
+    const byNumber = {};
+    data.prs.forEach(p => { byNumber[p.number] = p; });
+    livePRs.forEach(p => {
+      const old = byNumber[p.number] || {};
+      byNumber[p.number] = Object.assign({}, old, p, { reviewDecision: p.reviewDecision === undefined ? old.reviewDecision : p.reviewDecision });
+    });
+    const prs = Object.values(byNumber).sort((a, b) => a.number - b.number);
+    const ns = data.branch_prefix.slice(0, data.branch_prefix.lastIndexOf('/') + 1);
+    const assign = card => {
+      const stem = `${ns}afm-${card.key.split('-')[1]}`;
+      const mine = prs.filter(p => p.headRefName === stem || p.headRefName.startsWith(stem + '-'));
+      const open = mine.filter(p => p.state === 'OPEN' || p.state === 'MERGED').sort((a, b) => (a.state !== 'OPEN') - (b.state !== 'OPEN') || b.number - a.number);
+      card.pr = open[0] || null;
+      card.closed_prs = mine.filter(p => p.state === 'CLOSED');
+    };
+    Object.values(data.cards).forEach(assign);
+    data.levels.forEach(l => { assign(l); });
+    data.prs = prs;
+  }
+
+  async function load() {
+    $('#meta').textContent = 'Loading…';
+    live = { state: 'off', count: 0, error: null };
+    let loaded;
+    try { loaded = await fetchData(); }
+    catch (e) { data = null; renderSetup(e.message); return; }
+    data = loaded.data;
+    if (!data) { renderSetup(null); return; }
+    $('#setup').hidden = true;
+    if (settings.token) {
+      try { const prs = await fetchLivePRs(); overlayPRs(prs); live = { state: 'live', count: prs.length, error: null }; }
+      catch (e) { live = { state: 'failed', count: 0, error: e.message }; }
+    }
+    computeStackPos();
+    renderAll(loaded.source);
+  }
+
+  function renderSetup(errorMessage) {
+    const box = $('#setup');
+    box.hidden = false;
+    box.innerHTML = `
+      <h2 style="margin-top:0">${errorMessage ? 'Could not load the data' : 'One-time setup'}</h2>
+      ${errorMessage ? `<p class="bad" style="color:var(--danger)">${h(errorMessage)}</p>` : ''}
+      <p>This page is static. The project data lives in a private GitHub repo and is fetched with your own token, in your browser.</p>
+      <ol>
+        <li>Accept the invitation to the data repo (<code>${h(settings.owner)}/${h(settings.repo)}</code>), if you were invited.</li>
+        <li>Create a GitHub token: <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">fine-grained</a>, repository access = the data repo and the code repo, permissions <b>Contents: read</b> and <b>Pull requests: read</b>. A classic token with <code>repo</code> also works.</li>
+        <li>Open ⚙ Settings (top right), paste the token, Save and reload.</li>
+      </ol>
+      <p class="dim small">The token stays in this browser's localStorage. Nothing here writes to GitHub or Jira.</p>`;
+    $('#meta').innerHTML = `<span class="${errorMessage ? 'bad' : ''}">${errorMessage ? 'load failed' : 'no token set'}</span>`;
+    ['stack', 'cards', 'checker', 'tdm', 'links'].forEach(t => { $(`#tab-${t}`).innerHTML = ''; });
+  }
+
+  // ---------- helpers ----------
+  function computeStackPos() {
+    stackPos = {};
+    data.levels.forEach(l => {
+      stackPos[l.key] = l.order * 100;
+      l.children.forEach((k, i) => { stackPos[k] = l.order * 100 + i + 1; });
+    });
+    Object.values(data.cards).forEach(c => {
+      if (stackPos[c.key] == null && c.programmer_key && stackPos[c.programmer_key] != null) stackPos[c.key] = stackPos[c.programmer_key] + 0.5;
+    });
+  }
+  const posOf = key => stackPos[key] == null ? 9999 : stackPos[key];
+  const jiraLink = key => key ? `<a class="mono" href="${h(data.jira_base)}/browse/${h(key)}" target="_blank" rel="noopener">${h(key)}</a>` : '';
+  const ext = (url, label) => url ? `<a href="${h(url)}" target="_blank" rel="noopener">${h(label)}</a>` : '';
+  function statusChip(card) {
+    if (!card) return '';
+    const s = card.status || 'unknown';
+    const icon = STATUS_ICON[s] || (card.status_category === 'Done' ? '✅' : '▫️');
+    return `<span class="chip st" title="Jira status (from the data file)">${icon} ${h(s)}</span>`;
+  }
+  function workChip(card) {
+    if (!card || !card.work_status) return '';
+    return `<span class="chip dim" title="Work status in the plan${card.work_note ? ': ' + h(card.work_note) : ''}">plan: ${h(WORK_LABEL[card.work_status] || card.work_status)}</span>`;
+  }
+  function prChip(pr) {
+    if (!pr) return '<span class="chip dim">no PR</span>';
+    let icon, label, cls;
+    if (pr.state === 'MERGED') { icon = '🟣'; label = 'merged'; cls = 'merged'; }
+    else if (pr.state === 'CLOSED') { icon = '✖'; label = 'closed'; cls = 'closed'; }
+    else if (pr.isDraft) { icon = '📝'; label = 'draft'; cls = 'draft'; }
+    else { icon = '🟢'; label = 'ready'; cls = 'ready'; }
+    const approved = pr.reviewDecision === 'APPROVED' ? ' ✔' : (pr.reviewDecision === 'CHANGES_REQUESTED' ? ' ✎' : '');
+    return `<a class="chip pr ${cls}" href="${h(pr.url)}" target="_blank" rel="noopener" title="${h(pr.title || '')} (${h(pr.headRefName || '')} → ${h(pr.baseRefName || '')})">${icon} #${h(pr.number)} ${label}${approved}</a>`;
+  }
+  function closedPrs(list) {
+    if (!list || !list.length) return '';
+    return list.map(p => `<a class="chip pr closed" href="${h(p.url)}" target="_blank" rel="noopener" title="${h(p.title || '')}">#${h(p.number)} closed</a>`).join(' ');
+  }
+  function prActions(pr, card) {
+    if (!pr || pr.state !== 'OPEN' || !window.DashboardActions) return '';
+    const ctx = { pr, card, data };
+    const copies = DashboardActions.copy.map(a => { const cmd = a.cmd(ctx); return `<button class="mini" data-copy="${h(cmd)}" title="copy: ${h(cmd)}">${h(a.label)}</button>`; });
+    const v2 = (DashboardActions.v2 || []).filter(a => a.appliesTo === 'pr').map(a => `<button class="mini" data-v2="${h(a.id)}" data-pr="${h(pr.number)}" data-card="${h(card ? card.key : '')}">${h(a.label)}</button>`);
+    return `<span class="actions" title="copy a gh command">${copies.concat(v2).join('')}</span>`;
+  }
+  function cardActions(card) {
+    const v2 = ((window.DashboardActions && DashboardActions.v2) || []).filter(a => a.appliesTo === 'card');
+    return v2.map(a => `<button class="mini" data-v2="${h(a.id)}" data-card="${h(card.key)}">${h(a.label)}</button>`).join('');
+  }
+  function briefHtml(card) {
+    let text = card.brief;
+    if (!text && card.programmer_key && data.cards[card.programmer_key]) text = data.cards[card.programmer_key].brief;
+    if (!text) return '<span class="dim">no description in the plan</span>';
+    return h(text).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+  }
+  function shortBranch(b) { return b ? b.slice(b.lastIndexOf('/') + 1) : ''; }
+  function branchHtml(item) {
+    if (!item.branch) return '<span class="dim">no branch yet</span>';
+    const name = `<code>${h(shortBranch(item.branch))}</code>`;
+    const link = item.branch_exists ? `<a href="${h(item.branch_url)}" target="_blank" rel="noopener">${name}</a>` : `${name} <span class="dim">(planned)</span>`;
+    const others = (item.other_branches || []).map(b => `<code title="also on origin">${h(shortBranch(b))}</code>`).join(' ');
+    return link + (others ? ` <span class="dim small">also:</span> ${others}` : '');
+  }
+
+  // ---------- views ----------
+  function renderAll(source) {
+    const liveText = live.state === 'live' ? `<span class="ok">PR overlay live (${live.count} PRs)</span>` : live.state === 'failed' ? `<span class="bad" title="${h(live.error)}">PR overlay failed: ${h(live.error)}</span>` : 'PR overlay off (no token)';
+    $('#meta').innerHTML = `data ${h(fmtDate(data.generated_at))} (${h(source)}) · Jira snapshot ${h(fmtDate(data.jira_snapshot_at))} · ${liveText}`;
+    renderStack(); renderCards(); renderChecker(); renderTdm(); renderLinks();
+  }
+  function fmtDate(iso) { return iso ? iso.replace('T', ' ').replace(/([+-]\d\d:\d\d|Z)$/, '') : '?'; }
+
+  function renderStack() {
+    const cards = data.cards;
+    let out = `<p class="dim small">Merge order top to bottom: each branch is based on the one above it and merges into it. Cards inside a level are in stack order (lowest first).</p>`;
+    data.levels.forEach((lvl, i) => {
+      const c = cards[lvl.key];
+      const tdm = lvl.tdm || {};
+      out += `<div class="level"><div class="panel">
+        <div class="level-head">
+          <div class="level-title"><span class="chip short">${h(lvl.short)}</span> ${jiraLink(lvl.key)} <b>${h(lvl.title)}</b></div>
+          <div class="level-meta">${statusChip(c)} ${workChip(c)} ${prChip(lvl.pr)} ${prActions(lvl.pr, c)} ${closedPrs(lvl.closed_prs)} ${lvl.checker_key ? `<span class="dim">checker</span> ${jiraLink(lvl.checker_key)} ${statusChip(cards[lvl.checker_key])}` : ''} ${cardActions(c)}</div>
+          <div class="level-sub">${branchHtml(lvl)} <span>→ into <code>${h(shortBranch(lvl.base_branch))}</code></span></div>
+          <div class="level-sub">TDM builds <b>${h(tdm.base_build || '?')}</b> → <b>${h(tdm.tip_build || '?')}</b>${tdm.run_id ? ` · run ${h(tdm.run_id)}` : ' · no run yet'}${tdm.result ? ` · ${h(tdm.result)}` : ''} · ${ext(c.spec_url, 'docs')} · <button class="mini" data-brief="${h(c.key)}">brief</button></div>
+          <div class="brief" id="brief-${h(c.key)}" hidden>${briefHtml(c)}</div>
+        </div>
+        ${lvl.children.length ? `<ol class="stack-list">${lvl.children.map((k, idx) => cardRow(cards[k], idx + 1)).join('')}</ol>` : '<div class="dim small" style="margin-top:8px">Epic branch. The integration branches below merge into it, one after the other.</div>'}
+      </div></div>`;
+    });
+    out += decisionsHtml();
+    $('#tab-stack').innerHTML = out;
+  }
+  function cardRow(c, pos) {
+    const chk = c.checker_key ? data.cards[c.checker_key] : null;
+    return `<li class="card-row">
+      <div class="row-main"><span class="pos">${pos}</span>${statusChip(c)} ${jiraLink(c.key)} <span class="chip short">${h(c.short || '')}</span> <span class="title">${h(c.title)}</span></div>
+      <div class="row-side">${workChip(c)} ${prChip(c.pr)} ${prActions(c.pr, c)} ${closedPrs(c.closed_prs)} ${c.branch_exists ? `<a href="${h(c.branch_url)}" target="_blank" rel="noopener"><code>${h(shortBranch(c.branch))}</code></a>` : ''} ${chk ? `<span class="dim">check</span> ${jiraLink(chk.key)} ${statusChip(chk)}` : ''} ${ext(c.spec_url, 'spec')}${c.evidence_url ? ` · ${ext(c.evidence_url, 'evidence')}` : ''} <button class="mini" data-brief="${h(c.key)}">brief</button> ${cardActions(c)}</div>
+      <div class="brief" id="brief-${h(c.key)}" hidden>${briefHtml(c)}</div>
+    </li>`;
+  }
+  function decisionsHtml() {
+    if (!data.decisions || !data.decisions.length) return '';
+    return `<details class="panel" style="margin-top:6px"><summary>Decisions (${data.decisions.length})</summary><div class="tablewrap"><table><thead><tr><th>#</th><th>Decision</th><th>Default</th><th>Gates cut</th></tr></thead><tbody>${data.decisions.map(d => `<tr><td class="nowrap mono">${h(d.id)}</td><td>${h(d.decision)}</td><td>${h(d.default)}</td><td>${d.gates_cut ? '✅' : ''}</td></tr>`).join('')}</tbody></table></div></details>`;
+  }
+
+  function renderCards() {
+    const cards = Object.values(data.cards).sort((a, b) => posOf(a.key) - posOf(b.key) || a.key.localeCompare(b.key, undefined, { numeric: true }));
+    const uniq = arr => Array.from(new Set(arr.filter(Boolean))).sort();
+    const opt = (vals, labelOf) => vals.map(v => `<option value="${h(v)}">${h(labelOf ? labelOf(v) : v)}</option>`).join('');
+    const levelLabel = k => { const l = data.levels.find(x => x.key === k); return l ? `${l.short} · ${k}` : k; };
+    $('#tab-cards').innerHTML = `
+      <div class="filters">
+        <select id="f-level"><option value="">All builds</option>${opt(data.levels.map(l => l.key), levelLabel)}<option value="__none">Not in stack</option></select>
+        <select id="f-type"><option value="">All types</option>${opt(uniq(cards.map(c => c.type)))}</select>
+        <select id="f-assignee"><option value="">Anyone</option>${opt(uniq(cards.map(c => c.assignee)))}</select>
+        <select id="f-status"><option value="">Any status</option>${opt(uniq(cards.map(c => c.status)))}</select>
+        <input id="f-text" type="search" placeholder="Search key, title, branch, PR…">
+      </div>
+      <div class="panel tablewrap"><table><thead><tr><th>Key</th><th>Title</th><th>Status</th><th>Assignee</th><th>PR</th><th>Counterpart</th><th>Spec</th></tr></thead><tbody id="cards-body"></tbody></table></div>
+      <p class="dim small" id="cards-count"></p>`;
+    const levelOfCard = c => { if (c.level_key) return c.level_key; const p = c.programmer_key && data.cards[c.programmer_key]; return p && p.level_key ? p.level_key : ''; };
+    const apply = () => {
+      const fl = $('#f-level').value, ft = $('#f-type').value, fa = $('#f-assignee').value, fs = $('#f-status').value, q = $('#f-text').value.trim().toLowerCase();
+      const rows = cards.filter(c => {
+        const lk = levelOfCard(c);
+        if (fl === '__none' ? lk : (fl && lk !== fl)) return false;
+        if (ft && c.type !== ft) return false;
+        if (fa && c.assignee !== fa) return false;
+        if (fs && c.status !== fs) return false;
+        if (q) {
+          const hay = [c.key, c.short, c.title, c.branch, c.pr && '#' + c.pr.number, c.pr && c.pr.title, c.assignee, c.status].filter(Boolean).join(' ').toLowerCase();
+          if (!hay.includes(q)) return false;
+        }
+        return true;
+      });
+      $('#cards-body').innerHTML = rows.map(c => {
+        const cp = c.type === 'check' ? c.programmer_key : c.checker_key;
+        const cpCard = cp && data.cards[cp];
+        return `<tr>
+          <td class="nowrap">${jiraLink(c.key)}<br><span class="chip short">${h(c.short || c.type)}</span></td>
+          <td>${h(c.title)}<div class="small dim">${h(c.type)}${c.work_status ? ' · plan: ' + h(WORK_LABEL[c.work_status] || c.work_status) : ''}</div></td>
+          <td class="nowrap">${statusChip(c)}</td>
+          <td>${h(c.assignee || '')}</td>
+          <td class="nowrap">${prChip(c.pr)}<div>${prActions(c.pr, c)}</div>${closedPrs(c.closed_prs)}</td>
+          <td class="nowrap">${cpCard ? `${jiraLink(cp)}<br>${statusChip(cpCard)}` : ''}</td>
+          <td class="nowrap">${ext(c.spec_url, 'spec')}${c.evidence_url ? `<br>${ext(c.evidence_url, 'evidence')}` : ''}</td>
+        </tr>`;
+      }).join('');
+      $('#cards-count').textContent = `${rows.length} of ${cards.length} cards`;
+    };
+    ['#f-level', '#f-type', '#f-assignee', '#f-status'].forEach(s => $(s).addEventListener('change', apply));
+    $('#f-text').addEventListener('input', apply);
+    apply();
+  }
+
+  function renderChecker() {
+    const checker = data.people.checker;
+    const mine = Object.values(data.cards).filter(c => c.type === 'check' || c.assignee === checker.name)
+      .sort((a, b) => posOf(a.key) - posOf(b.key) || a.key.localeCompare(b.key, undefined, { numeric: true }));
+    const groups = [
+      { name: 'Ready to start', test: c => c.status === 'Ready to Start', note: 'The programmer PR is marked ready. Check it.' },
+      { name: 'In progress', test: c => c.status === 'In Progress' || c.status === 'In Review' },
+      { name: 'Done', test: c => c.status === 'Done' || c.status_category === 'Done' },
+      { name: 'Waiting (backlog)', test: () => true, note: 'The programmer PR is not ready yet. Nothing to do.' },
+    ];
+    groups.forEach(g => { g.items = []; });
+    mine.forEach(c => { groups.find(g => g.test(c)).items.push(c); });
+    let out = `<p class="dim small">Cards assigned to ${h(checker.name)}. Each row links the programmer card, its PR, and the spec with the check procedure.</p>`;
+    groups.forEach(g => {
+      out += `<div class="group"><h3>${h(g.name)} <span class="dim">(${g.items.length})</span></h3>`;
+      if (!g.items.length) { out += `<div class="dim small">none</div></div>`; return; }
+      if (g.note) out += `<div class="dim small" style="margin-bottom:6px">${h(g.note)}</div>`;
+      out += `<div class="panel"><ol class="stack-list" style="border-top:0;margin-top:0">${g.items.map(c => {
+        const prog = c.programmer_key ? data.cards[c.programmer_key] : null;
+        return `<li class="card-row">
+          <div class="row-main">${statusChip(c)} ${jiraLink(c.key)} <span class="chip short">${h(c.short || '')}</span> <span class="title">${h(c.title)}</span></div>
+          <div class="row-side">${prog ? `<span class="dim">programmer</span> ${jiraLink(prog.key)} ${statusChip(prog)} ${prChip(prog.pr)} ${prActions(prog.pr, prog)} ${prog.branch_exists ? `<a href="${h(prog.branch_url)}" target="_blank" rel="noopener"><code>${h(shortBranch(prog.branch))}</code></a>` : ''}` : ''} ${ext(c.spec_url, 'check procedure (spec)')}${c.evidence_url ? ` · ${ext(c.evidence_url, 'evidence')}` : ''} <button class="mini" data-brief="${h(c.key)}">brief</button> ${cardActions(c)}</div>
+          <div class="brief" id="brief-${h(c.key)}" hidden>${briefHtml(c)}</div>
+        </li>`;
+      }).join('')}</ol></div></div>`;
+    });
+    $('#tab-checker').innerHTML = out;
+  }
+
+  function renderTdm() {
+    const table = (title, rows) => {
+      if (!rows || !rows.length) return `<h2>${h(title)}</h2><div class="dim">none</div>`;
+      const cols = Object.keys(rows[0]);
+      const label = k => k === 'n' ? '#' : k.replace(/_/g, ' ').replace(/\b\w/g, m => m.toUpperCase()).replace('Elink', 'ELink').replace('Tdm', 'TDM').replace('Pr', 'PR');
+      const cell = v => Array.isArray(v) ? v.map(x => `<code>${h(x)}</code>`).join('<br>') : h(v);
+      return `<h2>${h(title)}</h2><div class="panel tablewrap"><table><thead><tr>${cols.map(c => `<th>${h(label(c))}</th>`).join('')}</tr></thead><tbody>${rows.map(r => `<tr>${cols.map(c => `<td>${cell(r[c])}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+    };
+    $('#tab-tdm').innerHTML = `<p class="dim small">One build at the start and one at the end of every integration branch; the end of one is the start of the next. Source: the TDM builds file (see Links).</p>` + table('Builds', data.tdm.builds) + table('TDM comparisons', data.tdm.comparisons);
+  }
+
+  function renderLinks() {
+    let out = '';
+    Object.entries(data.links).forEach(([group, links]) => {
+      out += `<h2>${h(group)}</h2><div class="panel"><ul class="linklist">${links.map(l => `<li><a href="${h(l.url)}" target="_blank" rel="noopener">${h(l.label)}</a> <span class="kind">${h(l.kind || 'page')}</span>${l.note ? ` <span class="dim small">${h(l.note)}</span>` : ''}${l.url_unverified ? ' <span class="flag">URL not verified</span>' : ''}</li>`).join('')}</ul></div>`;
+    });
+    const epic = data.epic || {};
+    out += `<h2>Branches on origin</h2><div class="panel"><ul class="linklist">${(data.branches || []).map(b => `<li><a href="https://github.com/${h(data.code_repo)}/tree/${h(b)}" target="_blank" rel="noopener"><code>${h(b)}</code></a></li>`).join('') || '<li class="dim">none</li>'}</ul></div>`;
+    out += `<p class="dim small">Epic ${jiraLink(epic.key)} · code repo <code>${h(data.code_repo)}</code> · branch prefix <code>${h(data.branch_prefix)}</code></p>`;
+    $('#tab-links').innerHTML = out;
+  }
+
+  // ---------- interactions ----------
+  function copyText(text) {
+    const done = () => toast('copied: ' + text);
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, () => fallbackCopy(text, done));
+    else fallbackCopy(text, done);
+  }
+  function fallbackCopy(text, done) {
+    const ta = document.createElement('textarea'); ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); done(); } catch (e) { toast('copy failed; command: ' + text); }
+    document.body.removeChild(ta);
+  }
+  let toastTimer;
+  function toast(msg) {
+    const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+  }
+  document.addEventListener('click', e => {
+    const copy = e.target.closest('[data-copy]');
+    if (copy) { copyText(copy.dataset.copy); return; }
+    const brief = e.target.closest('[data-brief]');
+    if (brief) { const el = document.getElementById('brief-' + brief.dataset.brief); if (el) el.hidden = !el.hidden; return; }
+    const v2 = e.target.closest('[data-v2]');
+    if (v2) { runV2(v2.dataset); return; }
+    const tab = e.target.closest('.tabs button');
+    if (tab) { showTab(tab.dataset.tab); }
+  });
+  async function runV2(ds) {
+    const action = (DashboardActions.v2 || []).find(a => a.id === ds.v2);
+    if (!action) return;
+    const pr = ds.pr ? data.prs.find(p => String(p.number) === ds.pr) : null;
+    const card = ds.card ? data.cards[ds.card] : null;
+    const github = (method, path, body) => fetch('https://api.github.com' + path, { method, headers: ghHeaders(), body: body ? JSON.stringify(body) : undefined }).then(r => { if (!r.ok) throw new Error(`GitHub ${r.status}`); return r.status === 204 ? null : r.json(); });
+    const text = (action.confirm || '').replace('{n}', pr ? pr.number : '').replace('{key}', card ? card.key : '');
+    if (text && !window.confirm(text)) return;
+    try { await action.run({ pr, card, data, token: settings.token, github }); toast(`${action.label}: done`); load(); }
+    catch (err) { toast(`${action.label} failed: ${err.message}`); }
+  }
+  function showTab(name) {
+    document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+    document.querySelectorAll('.tab').forEach(s => s.classList.toggle('active', s.id === 'tab-' + name));
+    try { localStorage.setItem('dashboard.tab', name); } catch (e) { /* ignore */ }
+  }
+
+  // settings panel
+  function openSettings() {
+    $('#s-token').value = settings.token || ''; $('#s-owner').value = settings.owner; $('#s-repo').value = settings.repo; $('#s-path').value = settings.path;
+    $('#settings-note').textContent = settings.token ? 'A token is stored in this browser.' : 'No token stored.';
+    $('#settings').hidden = false; $('#s-token').focus();
+  }
+  $('#gear').addEventListener('click', openSettings);
+  $('#close-settings').addEventListener('click', () => { $('#settings').hidden = true; });
+  $('#save-settings').addEventListener('click', () => {
+    settings.token = $('#s-token').value.trim(); settings.owner = $('#s-owner').value.trim() || DEFAULTS.owner;
+    settings.repo = $('#s-repo').value.trim() || DEFAULTS.repo; settings.path = $('#s-path').value.trim() || DEFAULTS.path;
+    saveSettings(); $('#settings').hidden = true; load();
+  });
+  $('#clear-token').addEventListener('click', () => { settings.token = ''; saveSettings(); $('#s-token').value = ''; $('#settings-note').textContent = 'Token removed.'; });
+  $('#refresh').addEventListener('click', load);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') $('#settings').hidden = true; });
+
+  let savedTab = 'stack';
+  try { savedTab = localStorage.getItem('dashboard.tab') || 'stack'; } catch (e) { /* ignore */ }
+  showTab(['stack', 'cards', 'checker', 'tdm', 'links'].includes(savedTab) ? savedTab : 'stack');
+  load();
+})();
+</script>
+</body>
+</html>

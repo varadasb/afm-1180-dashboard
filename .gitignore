@@ -1,0 +1,2 @@
+# A local copy of the private data file, for opening the page against a checkout. Never commit it.
+data.json
