@@ -10,6 +10,7 @@
   --bg: #f4f6f8; --panel: #ffffff; --text: #1c1f24; --muted: #5f6772; --line: #d9dee5;
   --accent: #2f6feb; --chip: #eaeef3; --hover: #f0f3f7; --code: #eef1f5; --danger: #b3261e;
   --ok: #1e7f3c; --warn: #9a6700; --shadow: 0 1px 2px rgba(0,0,0,.06);
+  --merged: #8e5cd9; --b1: #2a78d6; --b2: #eb6834; --b3: #1baf7a; --b4: #eda100; --b5: #e87ba4; --b6: #008300;
   --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --mono: ui-monospace, Consolas, "SF Mono", Menlo, monospace;
 }
@@ -18,12 +19,14 @@
     --bg: #0f1216; --panel: #171b21; --text: #e6e8eb; --muted: #9aa3ad; --line: #2a3038;
     --accent: #7aa7ff; --chip: #232932; --hover: #1e242c; --code: #1f252d; --danger: #ff7b6e;
     --ok: #5bd07a; --warn: #e3b341; --shadow: none;
+    --merged: #b48cff; --b1: #3987e5; --b2: #d95926; --b3: #199e70; --b4: #c98500; --b5: #d55181; --b6: #008300;
   }
 }
 :root[data-theme="dark"] {
   --bg: #0f1216; --panel: #171b21; --text: #e6e8eb; --muted: #9aa3ad; --line: #2a3038;
   --accent: #7aa7ff; --chip: #232932; --hover: #1e242c; --code: #1f252d; --danger: #ff7b6e;
   --ok: #5bd07a; --warn: #e3b341; --shadow: none;
+  --merged: #b48cff; --b1: #3987e5; --b2: #d95926; --b3: #199e70; --b4: #c98500; --b5: #d55181; --b6: #008300;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; }
@@ -54,7 +57,7 @@ h3 { font-size: 14px; margin: 14px 0 6px; color: var(--muted); font-weight: 600;
 .chip.short { font-family: var(--mono); font-weight: 600; }
 .chip.pr { border: 1px solid var(--line); }
 .chip.pr.ready { border-color: var(--ok); }
-.chip.pr.merged { border-color: #8e5cd9; }
+.chip.pr.merged { border-color: var(--merged); }
 .chip.pr.closed { opacity: .6; text-decoration: line-through; }
 .chip.dim { opacity: .65; }
 .chip.review { border: 1px solid var(--warn); background: var(--chip); cursor: pointer; }
@@ -133,6 +136,119 @@ tr.affects td { padding: 0 8px 10px 8px; }
 .affects-list { margin: 0; padding-left: 18px; font-size: 12.5px; color: var(--muted); }
 .affects-list li { margin: 3px 0; color: var(--text); }
 .affects-list .refs { margin-right: 4px; }
+/* visuals tab */
+.vis { margin-bottom: 14px; }
+.vis h2 { margin: 0 0 8px; }
+.vis h3 { margin: 16px 0 6px; }
+.vis-bar { display: flex; gap: 6px 10px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; font-size: 12.5px; color: var(--muted); }
+.vis-bar label { display: inline-flex; align-items: center; gap: 4px; }
+.vis-bar .grow { flex: 1 1 auto; }
+.vis-bar .lk { display: inline-flex; align-items: center; gap: 4px; }
+.vis-bar .lk i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; border: 1px solid var(--line); }
+.vis button.chip, .vis button.tile, .vis button.lvl, .vis button.tdm-nrow { border: 0; background: var(--chip); text-align: left; }
+.vis button.chip { cursor: pointer; }
+/* rail rows (merge map, stack health) */
+.mm-row { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 0 8px; }
+.mm-row .railwrap { position: relative; }
+.mm-row .rail { position: absolute; top: 0; left: 0; width: 28px; height: 100%; display: block; overflow: visible; }
+.mm-row .rail text { font-family: var(--mono); }
+.mm-body { padding: 6px 0 14px; min-width: 0; }
+.mm-line { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.mm-line + .mm-line, .mm-line + .hp-list { margin-top: 6px; }
+.vchain { row-gap: 6px; }
+.vnode { display: inline-flex; align-items: center; }
+.vnode:not(:last-child)::after { content: "›"; color: var(--muted); font-size: 11px; margin: 0 5px; }
+.vpill { display: inline-flex; align-items: baseline; gap: 3px; padding: 0 7px; border-radius: 999px; border: 1px solid var(--line); font: 12px/1.7 var(--mono); color: var(--text); background: var(--panel); white-space: nowrap; }
+.vpill.tiny { font-size: 11px; line-height: 1.5; }
+.vpill b { font-weight: 700; }
+.vpill.st-draft { border-style: dashed; border-color: var(--muted); color: var(--muted); }
+.vpill.st-ready { border-color: var(--ok); }
+.vpill.st-approved { background: var(--ok); border-color: var(--ok); color: var(--panel); }
+.vpill.st-approved::after { content: " ✔"; }
+.vpill.st-changes { border-color: var(--warn); }
+.vpill.st-changes::after { content: " ✎"; }
+.vpill.st-merged { background: var(--merged); border-color: var(--merged); color: var(--panel); }
+.vpill.st-closed { opacity: .5; text-decoration: line-through; }
+.vpill.st-none { border-style: dashed; color: var(--muted); }
+.vpill.jc { background: var(--pc); border-color: var(--pc); color: var(--panel); }
+.vpill.jc.light { color: var(--text); border-color: var(--line); }
+a.vpill:hover { text-decoration: none; filter: brightness(1.08); }
+/* footprint */
+.bchip-wrap { display: inline-flex; align-items: center; gap: 3px; }
+.bchip { display: inline-flex; align-items: center; gap: 5px; }
+.bchip.off { opacity: .45; text-decoration: line-through; }
+.bsq { display: inline-block; width: 10px; height: 10px; border-radius: 2px; border: 1px solid var(--line); vertical-align: middle; box-sizing: border-box; }
+.fp-rows { margin-bottom: 6px; }
+.fp-row { display: grid; grid-template-columns: 160px minmax(0, 1fr) auto; gap: 2px 10px; align-items: center; padding: 3px 0; }
+.fp-label { font-family: var(--mono); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fp-track { min-width: 0; }
+.fp-bar { display: flex; height: 14px; border-radius: 4px; overflow: hidden; gap: 2px; min-width: 6px; }
+.seg { display: block; height: 100%; position: relative; min-width: 3px; cursor: pointer; }
+.seg:hover { filter: brightness(1.15); }
+.seg i { position: absolute; right: 0; top: 0; bottom: 0; background: repeating-linear-gradient(45deg, rgba(255,255,255,.6) 0 2px, transparent 2px 4px); }
+.fp-count { font-family: var(--mono); font-size: 11.5px; color: var(--muted); white-space: pre; }
+.matrix { width: 100%; max-width: 480px; display: block; }
+.matrix text { font-family: var(--mono); pointer-events: none; }
+.matrix .cell { cursor: pointer; }
+.matrix .cell:hover rect { stroke: var(--accent); }
+td.path { word-break: break-all; min-width: 200px; }
+/* progress */
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 12px; }
+.vis button.tile { display: block; width: 100%; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; cursor: pointer; box-shadow: var(--shadow); }
+.vis button.tile:hover { background: var(--hover); }
+.tile .num { font-size: 24px; font-weight: 600; color: var(--text); line-height: 1.2; }
+.tile .lbl { font-size: 12px; color: var(--muted); }
+.tile .sub { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+.prow { display: grid; grid-template-columns: 150px minmax(0, 1fr) auto auto; gap: 6px 12px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.prow:last-child { border-bottom: 0; }
+.vis button.lvl { cursor: pointer; white-space: nowrap; background: none; padding: 0; }
+.vis button.lvl:hover .chip { background: var(--hover); }
+.sbar { display: flex; height: 10px; border-radius: 4px; overflow: hidden; background: var(--chip); min-width: 60px; }
+.pseg { display: block; height: 100%; border-right: 2px solid var(--panel); font: 9px/10px var(--mono); color: var(--panel); text-align: center; overflow: hidden; cursor: pointer; }
+.pseg.light { color: var(--text); }
+.pseg:last-child { border-right: 0; }
+.sqs { display: inline-flex; gap: 3px; align-items: center; flex-wrap: wrap; }
+.sq { display: inline-block; width: 12px; height: 12px; border-radius: 2px; border: 1px solid var(--muted); background: transparent; box-sizing: border-box; }
+.sq.round { border-radius: 50%; border-color: var(--line); }
+.sq.st-ready { background: var(--ok); border-color: var(--ok); }
+.sq.st-approved { background: var(--ok); border-color: var(--ok); box-shadow: inset 0 0 0 2px var(--panel); }
+.sq.st-changes { border-color: var(--warn); }
+.sq.st-merged { background: var(--merged); border-color: var(--merged); }
+.sq.st-closed { opacity: .5; background: linear-gradient(to top right, transparent 45%, var(--muted) 45% 55%, transparent 55%); }
+.sq.st-none { border-style: dashed; }
+.sq.diamond { transform: rotate(45deg); width: 10px; height: 10px; margin-left: 8px; border-radius: 1px; }
+.waiting { display: inline-flex; gap: 4px; }
+.tdm-wide { width: 100%; max-width: 980px; display: block; margin: 12px auto 0; }
+.tdm-wide text { font-family: var(--mono); }
+.tdm-wide .hit { cursor: pointer; }
+.tdm-narrow { display: none; }
+.vis button.tdm-nrow { display: flex; align-items: center; gap: 6px; background: none; padding: 2px 0; cursor: pointer; }
+.tdm-narc { padding-left: 4px; }
+/* stack health */
+.hp-list { display: flex; flex-direction: column; gap: 2px; }
+.hp { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; color: var(--text); font-size: 12.5px; padding: 1px 4px; border-radius: 4px; }
+.hp:hover { text-decoration: none; background: var(--hover); }
+.hp .ttl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 44ch; }
+.hp .ab { font-size: 11px; }
+.dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; flex: none; }
+.mb { display: inline-flex; gap: 2px; align-items: center; height: 8px; }
+.mb i { display: block; height: 8px; box-sizing: border-box; }
+.mb .ahead { background: var(--ok); }
+.mb .behind { border: 1px solid var(--warn); }
+.chip.ms { border: 1px solid var(--warn); }
+.chip.ms.dirty { border-color: var(--danger); }
+.chip.tog { border: 1px solid var(--line); }
+.chip.tog.on { border-color: var(--accent); color: var(--text); }
+.spine { font-size: 12.5px; color: var(--muted); }
+@media (max-width: 560px) {
+  .fp-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .fp-label { grid-column: 1 / -1; }
+  .prow { grid-template-columns: minmax(0, 1fr) auto auto; }
+  .vis button.lvl { grid-column: 1 / -1; }
+  .tdm-wide { display: none; }
+  .tdm-narrow { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; }
+  .hp .ttl { max-width: 100%; }
+}
 footer { margin-top: 28px; color: var(--muted); font-size: 12px; text-align: center; }
 @media (max-width: 560px) {
   .level { margin-left: 4px; padding-left: 14px; }
@@ -155,6 +271,7 @@ footer { margin-top: 28px; color: var(--muted); font-size: 12px; text-align: cen
   <button data-tab="checker">Checker</button>
   <button data-tab="review">Review</button>
   <button data-tab="decisions">Decisions</button>
+  <button data-tab="visuals">Visuals</button>
   <button data-tab="tdm">TDM</button>
   <button data-tab="links">Links</button>
 </nav>
@@ -166,6 +283,7 @@ footer { margin-top: 28px; color: var(--muted); font-size: 12px; text-align: cen
   <section id="tab-checker" class="tab"></section>
   <section id="tab-review" class="tab"></section>
   <section id="tab-decisions" class="tab"></section>
+  <section id="tab-visuals" class="tab"></section>
   <section id="tab-tdm" class="tab"></section>
   <section id="tab-links" class="tab"></section>
 </main>
@@ -199,7 +317,7 @@ footer { margin-top: 28px; color: var(--muted); font-size: 12px; text-align: cen
   <p id="settings-note"></p>
 </aside>
 
-<footer>AFM-1180 Dashboard v1.6</footer>
+<footer>AFM-1180 Dashboard v1.7</footer>
 <div id="toast" role="status"></div>
 
 <script src="actions.js"></script>
@@ -213,7 +331,7 @@ footer { margin-top: 28px; color: var(--muted); font-size: 12px; text-align: cen
   const STATUS_ICON = { 'Backlog': '⚪', 'In Progress': '🔵', 'In Review': '🟡', 'Ready to Start': '🟠', 'Done': '✅' };
   const WORK_LABEL = { done: 'done', partly: 'partly', wip: 'wip', pending: 'pending', na: 'n/a' };
   const REVIEW_BADGE = { actuarial: { icon: '🧮', label: 'actuarial review', cls: 'actuarial' }, decision: { icon: '📝', label: 'decision', cls: 'decision' } };
-  const TABS = ['stack', 'cards', 'checker', 'review', 'decisions', 'tdm', 'links'];
+  const TABS = ['stack', 'cards', 'checker', 'review', 'decisions', 'visuals', 'tdm', 'links'];
   const $ = sel => document.querySelector(sel);
   const h = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -442,7 +560,7 @@ footer { margin-top: 28px; color: var(--muted); font-size: 12px; text-align: cen
       : live.state === 'failed' ? `<span class="bad" title="${h(live.error)}">PR overlay failed: ${h(live.error)}</span>`
       : `<span class="dim">PR state from data.json, generated ${h(fmtDate(data.generated_at))}; add a code-repo token for live state</span>`;
     $('#meta').innerHTML = `data ${h(fmtDate(data.generated_at))} (${h(source)}) · Jira snapshot ${h(fmtDate(data.jira_snapshot_at))} · ${liveText}`;
-    renderStack(); renderCards(); renderChecker(); renderReview(); renderDecisions(); renderTdm(); renderLinks();
+    renderStack(); renderCards(); renderChecker(); renderReview(); renderDecisions(); renderVisuals(); renderTdm(); renderLinks();
   }
   function fmtDate(iso) { return iso ? iso.replace('T', ' ').replace(/([+-]\d\d:\d\d|Z)$/, '') : '?'; }
 
@@ -452,7 +570,7 @@ footer { margin-top: 28px; color: var(--muted); font-size: 12px; text-align: cen
     data.levels.forEach((lvl, i) => {
       const c = cards[lvl.key];
       const tdm = lvl.tdm || {};
-      out += `<div class="level"><div class="panel">
+      out += `<div class="level" id="level-${h(lvl.key)}"><div class="panel">
         <div class="level-head">
           <div class="level-title"><span class="chip short">${h(lvl.short)}</span> ${jiraLink(lvl.key)} <b>${h(lvl.title)}</b></div>
           <div class="level-meta">${statusChip(c)} ${workChip(c)} ${prChip(lvl.pr)} ${prActions(lvl.pr, c)} ${closedPrs(lvl.closed_prs)} ${reviewBadge(c)} ${lvl.checker_key ? `<span class="dim">checker</span> ${jiraLink(lvl.checker_key)} ${statusChip(cards[lvl.checker_key])}` : ''} ${cardActions(c)}</div>
@@ -715,6 +833,325 @@ footer { margin-top: 28px; color: var(--muted); font-size: 12px; text-align: cen
     $('#tab-links').innerHTML = out;
   }
 
+  // ---------- visuals ----------
+  // Panel-local choices (colour-by, files|lines, hidden blocks, health filters) live in localStorage; a per-viewer convenience only.
+  const VIS_KEY = 'dashboard.visuals';
+  let visPrefs = {};
+  try { visPrefs = JSON.parse(localStorage.getItem(VIS_KEY) || '{}'); } catch (e) { /* private mode or corrupt */ }
+  function visPref(key, value) {
+    if (value === undefined) return visPrefs[key];
+    visPrefs[key] = value;
+    try { localStorage.setItem(VIS_KEY, JSON.stringify(visPrefs)); } catch (e) { /* ignore */ }
+    return value;
+  }
+  let fpFilter = null; // {kind:'pair', a, b} from a matrix cell, {kind:'seg', block, folder} from a bar segment; null = hot files
+  // PR state in one word. Feeds the merge-map pills, the progress squares and the health rows.
+  function prState(pr) {
+    if (!pr) return 'none';
+    if (pr.state === 'MERGED') return 'merged';
+    if (pr.state === 'CLOSED') return 'closed';
+    if (pr.isDraft) return 'draft';
+    if (pr.reviewDecision === 'APPROVED') return 'approved';
+    if (pr.reviewDecision === 'CHANGES_REQUESTED') return 'changes';
+    return 'ready';
+  }
+  const PR_STATES = ['draft', 'ready', 'approved', 'changes', 'merged', 'closed', 'none'];
+  const PR_STATE_LABEL = { draft: 'draft', ready: 'ready', approved: 'approved', changes: 'changes requested', merged: 'merged', closed: 'closed', none: 'no PR yet' };
+  // Jira status buckets in the order the progress bars use. Matched case-insensitively: the snapshot has "IN REVIEW" and "In Review".
+  const JIRA_BUCKETS = ['Done', 'In Review', 'In Progress', 'Ready to Start', 'Backlog'];
+  const JIRA_COLOR = { 'Done': 'var(--ok)', 'In Review': 'var(--warn)', 'In Progress': 'var(--accent)', 'Ready to Start': 'color-mix(in srgb, var(--accent) 45%, var(--panel))', 'Backlog': 'var(--chip)' };
+  const JIRA_LIGHT = { 'Ready to Start': true, 'Backlog': true }; // light fills keep the normal text colour
+  function jiraBucket(card) {
+    if (!card) return 'Backlog';
+    if (card.status_category === 'Done') return 'Done';
+    const s = String(card.status || '').toLowerCase();
+    return JIRA_BUCKETS.find(b => b.toLowerCase() === s) || 'Backlog';
+  }
+  const mergeSeq = l => l.merge_seq != null ? l.merge_seq : (l.order === 1 ? data.levels.length : l.order - 1);
+  const mergeLevels = () => data.levels.slice().sort((a, b) => mergeSeq(a) - mergeSeq(b));
+  const levelByKey = key => data.levels.find(l => l.key === key);
+  const num = n => n == null ? '?' : Number(n).toLocaleString('en-US');
+  const churn = (a, d) => `+${num(a)} −${num(d)}`;
+  const shortDate = iso => iso ? String(iso).slice(0, 10) : '?';
+  const prTitle = pr => `#${pr.number} ${pr.title || ''} · ${shortBranch(pr.headRefName)} → ${shortBranch(pr.baseRefName)} · ${num(pr.ahead)} commits · ${churn(pr.additions, pr.deletions)} · ${pr.merge_state || '?'} · updated ${shortDate(pr.updated_at)}`;
+  const ghPath = (kind, branch, path) => `https://github.com/${data.code_repo}/${kind}/${branch}/${encodeURI(path)}`;
+  // Block colour: --b1..--b6 in merge order of the six levels with children. The block short always travels with the colour.
+  function blockColors() {
+    const m = {};
+    mergeLevels().filter(l => l.children.length).forEach((l, i) => { m[l.short] = `var(--b${i + 1})`; });
+    return m;
+  }
+
+  function renderVisuals() {
+    $('#tab-visuals').innerHTML = `
+      <p class="dim small">Four views of the same stack: the merge map (what merges into what, and the PR chain inside each block), the repo footprint (which folders each block touches and where blocks overlap), progress, and stack health (ahead / behind per PR). Git numbers come from the data file (generated ${h(fmtDate(data.vis ? data.vis.generated_at : data.generated_at))}); PR state follows the live overlay when a code-repo token is set.</p>
+      <div class="panel vis" id="vis-map"></div><div class="panel vis" id="vis-fp"></div><div class="panel vis" id="vis-prog"></div><div class="panel vis" id="vis-health"></div>`;
+    renderMergeMap(); renderFootprint(); renderProgress(); renderHealth();
+  }
+
+  // One row per level in merge order: a 28px rail (trunk, node with the merge sequence, arrow up to the base) + rowFn(level).
+  // The rail is one inline SVG per row in pixel units (percent trunk), so the node stays round whatever the row height.
+  function renderLevelRows(rowFn) {
+    const levels = mergeLevels();
+    return levels.map((l, i) => {
+      const hollow = !l.pr, first = i === 0, last = i === levels.length - 1;
+      const rail = `<svg class="rail" aria-hidden="true">
+        <line x1="14" y1="${first ? 14 : 0}" x2="14" y2="${last ? 14 : '100%'}" stroke="var(--accent)" stroke-width="2"/>
+        ${first ? '' : '<path d="M10 7 L14 2 L18 7" fill="none" stroke="var(--accent)" stroke-width="2"/>'}
+        <circle cx="14" cy="14" r="6" fill="${hollow ? 'var(--panel)' : 'var(--accent)'}" stroke="var(--accent)" stroke-width="1.5"${hollow ? ' stroke-dasharray="2 2"' : ''}><title>${h(hollow ? `merges ${mergeSeq(l)}. · spine PR not opened yet` : `merges ${mergeSeq(l)}. · spine PR #${l.pr.number}`)}</title></circle>
+        <text x="14" y="17" text-anchor="middle" font-size="9" fill="${hollow ? 'var(--accent)' : 'var(--panel)'}">${mergeSeq(l)}</text></svg>`;
+      return `<div class="mm-row"><div class="railwrap">${rail}</div><div class="mm-body">${rowFn(l)}</div></div>`;
+    }).join('');
+  }
+
+  // Panel 1: merge map. Spine rows in merge order, the inner PR chain of each block as pills (bold = commits ahead of base).
+  function renderMergeMap() {
+    const mode = visPref('colorBy') || 'pr';
+    const cards = data.cards;
+    const pill = card => {
+      const pr = card.pr, st = prState(pr);
+      let cls = `vpill st-${st}`, style = '';
+      if (mode !== 'pr') {
+        const bucket = jiraBucket(mode === 'jira' ? card : cards[card.checker_key]);
+        cls = `vpill jc${JIRA_LIGHT[bucket] ? ' light' : ''}`;
+        style = ` style="--pc:${JIRA_COLOR[bucket]}"`;
+      }
+      if (!pr) return `<span class="${cls}"${style} title="${h(`${card.key} ${card.title || ''}: no PR yet`)}">${h(card.short || card.key)}</span>`;
+      return `<a class="${cls}"${style} href="${h(pr.url)}" target="_blank" rel="noopener" title="${h(prTitle(pr))}">#${h(pr.number)}<b>${h(pr.ahead == null ? '' : pr.ahead)}</b></a>`;
+    };
+    const legend = mode === 'pr'
+      ? PR_STATES.map(s => `<span class="vpill st-${s}">${h(PR_STATE_LABEL[s])}</span>`).join(' ')
+      : JIRA_BUCKETS.map(b => `<span class="vpill jc${JIRA_LIGHT[b] ? ' light' : ''}" style="--pc:${JIRA_COLOR[b]}">${h(b)}</span>`).join(' ');
+    const radio = (v, label) => `<label><input type="radio" name="vis-color" value="${v}"${mode === v ? ' checked' : ''}> ${label}</label>`;
+    const row = l => {
+      const b = l.block || {};
+      return `<div class="mm-line"><button class="chip short" data-goto-tab="cards" data-goto-level="${h(l.key)}" title="Cards tab, filtered to this level">${h(l.short)}</button> ${jiraLink(l.key)} <b>${h(l.title)}</b> · ${l.pr ? prChip(l.pr) : '<span class="chip dim">spine PR after block merges</span>'} <span class="dim small">${num(b.commits)} commits · ${num(b.changed_files)} files ${churn(b.additions, b.deletions)}</span></div>
+        <div class="mm-line vchain">${l.children.length ? l.children.map(k => `<span class="vnode">${pill(cards[k])}</span>`).join('') : '<span class="dim small">no inner PRs: the blocks above merge into this branch one after the other</span>'}</div>`;
+    };
+    $('#vis-map').innerHTML = `<h2>Merge map</h2>
+      <div class="vis-bar"><span>legend</span> ${legend} <span class="grow"></span> <span>colour by</span> ${radio('pr', 'PR state')} ${radio('jira', 'Jira status')} ${radio('checker', 'checker status')}</div>
+      <p class="dim small">Rows in merge order (1 first). Each block's pills are its PRs in stack order, each based on the one before; the bold number is commits ahead of its base. Hollow pill = card without a PR yet. Hover for the branch pair and churn, click to open the PR.</p>
+      ${renderLevelRows(row)}`;
+    $('#vis-map').querySelectorAll('input[name=vis-color]').forEach(r => r.addEventListener('change', () => { visPref('colorBy', r.value); renderMergeMap(); }));
+  }
+
+  // Panel 2: repo footprint. Folder bars segmented by block, block x block overlap matrix, shared / hot files table.
+  function renderFootprint() {
+    const vis = data.vis, box = $('#vis-fp');
+    if (!vis || !vis.blocks) { box.innerHTML = '<h2>Repo footprint</h2><div class="dim">No footprint data in this data file; rebuild it with <code>build_data.py</code> in live mode.</div>'; return; }
+    const off = new Set(visPref('blocksOff') || []);
+    const metric = visPref('metric') || 'files';
+    const color = blockColors();
+    const blocks = vis.blocks.filter(b => !off.has(b.short));
+    const value = f => metric === 'files' ? f.files : f.additions + f.deletions;
+    const blockLevel = short => data.levels.find(l => l.short === short);
+    // 2a folder bars
+    const rows = vis.folders.map(folder => {
+      const parts = blocks.filter(b => b.folders[folder]).map(b => ({ b, f: b.folders[folder] }));
+      const sum = key => parts.reduce((s, p) => s + p.f[key], 0);
+      return { folder, parts, total: parts.reduce((s, p) => s + value(p.f), 0), files: sum('files'), add: sum('additions'), del: sum('deletions') };
+    }).filter(r => r.parts.length);
+    const max = Math.max(1, ...rows.map(r => r.total));
+    const bars = rows.map(r => {
+      const dominant = r.parts.slice().sort((x, y) => y.f.files - x.f.files)[0].b;
+      const segs = r.parts.map(({ b, f }) => `<span class="seg" style="flex:${value(f)} 1 0;background:${color[b.short]}" data-fp-block="${h(b.short)}" data-fp-folder="${h(r.folder)}" title="${h(`${b.short} · ${r.folder} · ${num(f.files)} files · ${churn(f.additions, f.deletions)} · ${num(f.binary)} binary`)}">${metric === 'files' && f.binary ? `<i style="width:${(f.binary / f.files * 100).toFixed(1)}%"></i>` : ''}</span>`).join('');
+      return `<div class="fp-row"><a class="fp-label" href="${h(ghPath('tree', dominant.tip_branch, r.folder.replace(/ code$/, '')))}" target="_blank" rel="noopener" title="${h(`${r.folder} on ${shortBranch(dominant.tip_branch)} (${dominant.short})`)}">${h(r.folder)}</a><div class="fp-track"><div class="fp-bar" style="width:${(Math.sqrt(r.total) / Math.sqrt(max) * 100).toFixed(1)}%">${segs}</div></div><span class="fp-count">${num(r.files)} f  ${churn(r.add, r.del)}</span></div>`;
+    }).join('') || '<div class="dim small">every block is hidden</div>';
+    const legend = vis.blocks.map(b => {
+      const lvl = blockLevel(b.short), cmp = lvl && lvl.block && lvl.block.compare_url;
+      return `<span class="bchip-wrap"><button class="chip bchip${off.has(b.short) ? ' off' : ''}" data-fp-toggle="${h(b.short)}" title="show / hide ${h(b.short)} in the bars, the matrix and the table"><i class="bsq" style="background:${color[b.short]};border-color:${color[b.short]}"></i>${h(b.short)} · ${num(b.files)} f · +${num(b.additions)}/−${num(b.deletions)}</button>${cmp ? `<a class="mini" href="${h(cmp)}" target="_blank" rel="noopener" title="GitHub compare ${h(shortBranch(b.base_branch))}...${h(shortBranch(b.tip_branch))}">compare</a>` : ''}</span>`;
+    }).join(' ');
+    // 2b overlap matrix (upper triangle), one SVG scaled as a unit
+    const n = blocks.length, cell = 48, x0 = 124, y0 = 24, W = 420, H = y0 + n * cell + 6;
+    const overlapOf = (a, b) => vis.overlap.find(o => (o.a === a && o.b === b) || (o.a === b && o.b === a));
+    const maxN = Math.max(1, ...vis.overlap.map(o => o.count));
+    let svg = `<svg class="matrix" viewBox="0 0 ${W} ${H}" role="img" aria-label="files shared between blocks">`;
+    blocks.forEach((b, j) => { svg += `<text x="${x0 + j * cell + cell / 2}" y="${y0 - 8}" text-anchor="middle" font-size="11" fill="var(--text)">${h(b.short)}</text>`; });
+    blocks.forEach((a, i) => {
+      svg += `<text x="${x0 - 8}" y="${y0 + i * cell + cell / 2 + 4}" text-anchor="end" font-size="12" fill="var(--text)">${h(a.short)}</text>`;
+      blocks.forEach((b, j) => {
+        if (j < i) return;
+        const x = x0 + j * cell, y = y0 + i * cell;
+        if (i === j) { svg += `<rect x="${x + 1}" y="${y + 1}" width="${cell - 2}" height="${cell - 2}" rx="3" fill="var(--chip)"/><text x="${x + cell / 2}" y="${y + cell / 2 + 4}" text-anchor="middle" font-size="12" fill="var(--muted)">${num(a.files)}</text>`; return; }
+        const o = overlapOf(a.short, b.short), c = o ? o.count : 0;
+        svg += `<g class="cell" data-ov-a="${h(a.short)}" data-ov-b="${h(b.short)}"><title>${h(`${a.short} × ${b.short}: ${c} shared file${c === 1 ? '' : 's'}`)}</title><rect x="${x + 1}" y="${y + 1}" width="${cell - 2}" height="${cell - 2}" rx="3" fill="${c ? 'var(--warn)' : 'none'}" fill-opacity="${c ? (0.25 + 0.75 * Math.sqrt(c / maxN)).toFixed(2) : 0}" stroke="var(--line)"/>${c ? `<text x="${x + cell / 2}" y="${y + cell / 2 + 4}" text-anchor="middle" font-size="12" fill="var(--text)">${c}</text>` : ''}</g>`;
+      });
+    });
+    svg += '</svg>';
+    // 2c shared / hot files, or the list behind a matrix cell / bar segment
+    const hotByPath = {};
+    vis.hot_files.forEach(f => { hotByPath[f.path] = f; });
+    let files = vis.hot_files, label = '';
+    if (fpFilter && fpFilter.kind === 'pair') {
+      const o = overlapOf(fpFilter.a, fpFilter.b);
+      files = (o ? o.files : []).map(f => hotByPath[f.path] || { path: f.path, folder: f.folder, blocks: [fpFilter.a, fpFilter.b], prs: f.prs, additions: null, deletions: null, binary: false, kinds: {} });
+      label = `${fpFilter.a} × ${fpFilter.b} · ${files.length} shared files`;
+    } else if (fpFilter && fpFilter.kind === 'seg') {
+      files = vis.hot_files.filter(f => f.folder === fpFilter.folder && f.blocks.includes(fpFilter.block));
+      label = `${fpFilter.block} × ${fpFilter.folder} · ${files.length} hot files (the data file lists only files in 2+ blocks or PRs)`;
+    }
+    files = files.filter(f => f.blocks.some(b => !off.has(b)));
+    const KIND_WORD = { M: 'modified', A: 'added', D: 'deleted', R: 'renamed' }, KIND_RANK = { D: 4, R: 3, A: 2, M: 1 };
+    const fileRow = f => {
+      const tip = f.blocks.map(blockLevel).filter(Boolean).sort((x, y) => mergeSeq(y) - mergeSeq(x))[0];
+      const name = tip ? `<a class="mono" href="${h(ghPath('blob', tip.leaf_branch, f.path))}" target="_blank" rel="noopener" title="${h(`on ${shortBranch(tip.leaf_branch)} (${tip.short})`)}">${h(f.path)}</a>` : `<span class="mono">${h(f.path)}</span>`;
+      const squares = vis.blocks.map(b => { const on = f.blocks.includes(b.short); return `<i class="bsq" style="${on && !off.has(b.short) ? `background:${color[b.short]};border-color:${color[b.short]}` : ''}" title="${h(b.short + (on ? '' : ': not touched'))}"></i>`; }).join('');
+      const prs = (f.prs || []).map(k => data.prs.find(p => p.number === k)).filter(Boolean);
+      const kinds = Object.entries(f.kinds || {}).sort((x, y) => KIND_RANK[y[1]] - KIND_RANK[x[1]]);
+      return `<tr><td class="path">${name}</td>
+        <td class="nowrap"><span class="sqs">${squares}</span></td>
+        <td>${prs.length} ${prs.slice(0, 6).map(prChip).join(' ')}${prs.length > 6 ? ` <span class="mini">+${prs.length - 6}</span>` : ''}</td>
+        <td class="nowrap mono">${f.binary ? 'binary' : (f.additions == null ? '' : churn(f.additions, f.deletions))}</td>
+        <td class="nowrap" title="${h(kinds.map(([k, kind]) => `${KIND_WORD[kind] || kind} in #${k}`).join(', '))}">${kinds.length ? h(kinds[0][1]) : ''}</td></tr>`;
+    };
+    const table = list => `<div class="tablewrap"><table><thead><tr><th>File</th><th>Blocks</th><th>PRs</th><th>Churn</th><th>Kind</th></tr></thead><tbody>${list.map(fileRow).join('') || '<tr><td colspan="5" class="dim">none</td></tr>'}</tbody></table></div>`;
+    const first = files.slice(0, 40), rest = files.slice(40);
+    box.innerHTML = `<h2>Repo footprint</h2>
+      <div class="vis-bar">${legend} <span class="grow"></span> <label><input type="radio" name="vis-metric" value="files"${metric === 'files' ? ' checked' : ''}> files</label> <label><input type="radio" name="vis-metric" value="lines"${metric === 'lines' ? ' checked' : ''}> lines</label></div>
+      <p class="dim small">Files each block changes (its branch … its last PR), by folder, deduplicated within a block. Hatched tail = binary files. Bar length is square-root scaled. Click a segment to list that block's hot files in the folder, a folder name to open it on the dominant block's tip branch, a block chip to hide it everywhere below.</p>
+      <div class="fp-rows">${bars}</div>
+      <h3>Overlap</h3>
+      ${svg}
+      <div class="small dim">files touched by both blocks · click a cell for the list</div>
+      <h3 id="vis-files">${label ? `files <span class="chip">${h(label)} <button class="mini" data-fp-clear title="back to the hot files">×</button></span>` : `shared / hot files <span class="dim">(in 2+ blocks or 2+ PRs, ${vis.hot_files.length})</span>`}</h3>
+      ${table(first)}
+      ${rest.length ? `<details><summary>show all (${rest.length} more)</summary>${table(rest)}</details>` : ''}`;
+    box.querySelectorAll('input[name=vis-metric]').forEach(r => r.addEventListener('change', () => { visPref('metric', r.value); renderFootprint(); }));
+  }
+
+  // Panel 3: progress. Five tiles, one status bar per level, PR squares, waiting-on chips, the TDM rail.
+  function renderProgress() {
+    const work = Object.values(data.cards).filter(c => c.type !== 'check');
+    const isDone = c => c.status_category === 'Done' || c.work_status === 'done';
+    const livePrs = data.prs.filter(p => p.state === 'OPEN' || p.state === 'MERGED');
+    const ready = livePrs.filter(p => p.state === 'OPEN' && !p.isDraft).length, draft = livePrs.filter(p => p.state === 'OPEN' && p.isDraft).length, merged = livePrs.filter(p => p.state === 'MERGED').length;
+    const dc = data.decision_counts || { open: 0, decided: 0 };
+    const openItems = reviewItems().filter(i => i.status === 'open');
+    const byOwner = { Zoe: 0, Varada: 0, other: 0 };
+    openItems.forEach(i => { byOwner[i.owner === 'Zoe' || i.owner === 'Varada' ? i.owner : 'other']++; });
+    const builds = data.tdm.builds || [];
+    const uploaded = builds.filter(b => b.uploaded && b.uploaded.trim()).length;
+    const tile = (tab, n, label, sub) => `<button class="tile" data-goto-tab="${tab}" title="open the ${tab} tab"><div class="num">${h(n)}</div><div class="lbl">${h(label)}</div>${sub ? `<div class="sub">${h(sub)}</div>` : ''}</button>`;
+    const tiles = tile('cards', `${work.filter(isDone).length} / ${work.length}`, 'cards done', 'bugs, tasks, integration; check cards excluded')
+      + tile('stack', `${ready} / ${draft} / ${merged}`, 'PRs ready / draft / merged', `${livePrs.length} open or merged`)
+      + tile('decisions', dc.open, 'decisions open', `${dc.decided} decided`)
+      + tile('review', openItems.length, 'review items open', `Zoe ${byOwner.Zoe} · Varada ${byOwner.Varada} · other ${byOwner.other}`)
+      + tile('tdm', `${uploaded} / ${builds.length}`, 'TDM builds uploaded', `${builds.length - uploaded} planned`);
+    const openDecisions = (data.decisions || []).filter(d => d.status === 'open');
+    const row = l => {
+      const keys = [l.key].concat(l.children);
+      const kids = l.children.map(k => data.cards[k]);
+      const counts = {};
+      JIRA_BUCKETS.forEach(b => { counts[b] = kids.filter(c => jiraBucket(c) === b); });
+      const segs = JIRA_BUCKETS.filter(b => counts[b].length).map(b => `<span class="pseg${JIRA_LIGHT[b] ? ' light' : ''}" style="flex:${counts[b].length} 1 0;background:${JIRA_COLOR[b]}" data-goto-tab="cards" data-goto-level="${h(l.key)}" data-goto-status="${h(b)}" title="${h(`${b} (${counts[b].length}):\n` + counts[b].map(c => `${c.key} ${c.short || ''} ${c.title || ''}`).join('\n'))}">${counts[b].length >= 2 ? counts[b].length : ''}</span>`).join('');
+      const squares = l.children.map(k => {
+        const c = data.cards[k], st = prState(c.pr);
+        return c.pr ? `<a class="sq st-${st}" href="${h(c.pr.url)}" target="_blank" rel="noopener" title="${h(`#${c.pr.number} ${c.pr.title || ''} · ${PR_STATE_LABEL[st]}`)}"></a>` : `<span class="sq st-none" title="${h(`${c.short || k}: no PR yet`)}"></span>`;
+      }).join('');
+      const spine = `<span class="sq diamond st-${prState(l.pr)}" title="${h(l.pr ? `spine PR #${l.pr.number} · ${PR_STATE_LABEL[prState(l.pr)]}` : 'spine PR not opened yet')}"></span>`;
+      const dOpen = openDecisions.filter(d => (d.cards || []).some(k => keys.includes(k)) || (d.prs || []).some(k => (l.inner_prs || []).includes(k) || (l.pr && l.pr.number === k))).length;
+      const rOpen = openItems.filter(i => keys.includes(i.card)).length;
+      const waiting = (dOpen ? `<button class="chip open" data-goto-tab="decisions" title="open decisions touching this level's cards or PRs">D ${dOpen}</button> ` : '')
+        + (rOpen ? `<button class="chip open" data-goto-tab="review" title="open review items on this level's cards">R ${rOpen}</button>` : '');
+      return `<div class="prow"><button class="lvl" data-stack-level="${h(l.key)}" title="open in the Stack tab"><span class="chip short">${h(l.short)}</span> <span class="mono small">${h(l.key)}</span></button>
+        <div class="sbar" title="${kids.length} cards">${segs}</div>
+        <span class="sqs">${squares}${spine}</span><span class="waiting">${waiting}</span></div>`;
+    };
+    $('#vis-prog').innerHTML = `<h2>Progress</h2>
+      <div class="tiles">${tiles}</div>
+      <div class="vis-bar"><span>bar</span> ${JIRA_BUCKETS.map(b => `<span class="lk"><i style="background:${JIRA_COLOR[b]}"></i>${h(b)}</span>`).join(' ')} <span class="grow"></span> <span>squares = PRs in stack order, ◆ = spine PR</span></div>
+      <div class="prows">${mergeLevels().map(row).join('')}</div>
+      ${tdmRail()}`;
+  }
+  // TDM rail: 7 stations (builds), an arc per comparison between consecutive builds, a bracket for the epic-wide one.
+  // Rendered twice: one SVG for wide screens and a column of rows under 560px; CSS shows one.
+  function tdmRail() {
+    const builds = data.tdm.builds || [], comps = data.tdm.comparisons || [];
+    const cmpFor = (a, b) => comps.find(c => c.base_build === a && c.tip_build === b);
+    const shortOf = key => { const l = levelByKey(key); return l ? l.short : key; };
+    const verdict = c => !c || !c.result ? 'none' : /no change|match/i.test(c.result) ? 'ok' : /diff|change/i.test(c.result) ? 'bad' : 'none';
+    const STROKE = { none: 'var(--muted)', ok: 'var(--ok)', bad: 'var(--danger)' };
+    const tail = v => { const t = String(v || '').replace(/^.*?VB_/, ''); return t.length > 16 ? '…' + t.slice(-15) : t; };
+    const isUp = b => !!(b.uploaded && b.uploaded.trim());
+    const cmpText = c => c ? `${c.integration_branch}: builds ${c.base_build} → ${c.tip_build} · ${c.result || 'no run'}${c.tdm_run_id ? ' · run ' + c.tdm_run_id : ''}` : 'no comparison planned';
+    const X = i => 50 + i * 100, Y = 58;
+    let svg = `<svg class="tdm-wide" viewBox="0 0 700 120" role="img" aria-label="TDM builds and comparisons">`;
+    builds.forEach((b, i) => {
+      const up = isUp(b);
+      svg += `<g class="hit" data-goto-tab="tdm"><title>${h(`build ${b.n}: ${b.point}${up ? ' · uploaded ' + b.uploaded : ' · planned'}`)}</title><circle cx="${X(i)}" cy="${Y}" r="8" fill="${up ? 'var(--ok)' : 'var(--panel)'}" stroke="${up ? 'var(--ok)' : 'var(--line)'}" stroke-width="2"/><text x="${X(i)}" y="${Y + 3.5}" text-anchor="middle" font-size="10" fill="${up ? 'var(--bg)' : 'var(--muted)'}">${h(b.n)}</text><text x="${X(i)}" y="${Y + 24}" text-anchor="middle" font-size="10" fill="var(--muted)">${h(tail(b.elink_version))}</text></g>`;
+      if (i + 1 < builds.length) {
+        const c = cmpFor(b.n, builds[i + 1].n), v = verdict(c), mid = X(i) + 50;
+        svg += `<g class="hit" data-goto-tab="tdm"><title>${h(cmpText(c))}</title><path d="M${X(i)} ${Y - 8} Q${mid} 12 ${X(i + 1)} ${Y - 8}" fill="none" stroke="${STROKE[v]}" stroke-width="2"${v === 'none' ? ' stroke-dasharray="4 3"' : ''}/><text x="${mid}" y="${Y - 14}" text-anchor="middle" font-size="9" fill="var(--muted)">${h(c && c.result ? c.result : 'no run')}</text></g>`;
+        if (c) svg += `<a href="${h(data.jira_base)}/browse/${h(c.jira)}" target="_blank" rel="noopener"><text x="${mid}" y="10" text-anchor="middle" font-size="10" fill="var(--accent)">${h(shortOf(c.jira))}</text></a>`;
+      }
+    });
+    const whole = builds.length > 1 ? cmpFor(builds[0].n, builds[builds.length - 1].n) : null;
+    if (whole) {
+      const v = verdict(whole);
+      svg += `<g class="hit" data-goto-tab="tdm"><title>${h(cmpText(whole))}</title><path d="M${X(0)} 90 V100 H${X(builds.length - 1)} V90" fill="none" stroke="${STROKE[v]}" stroke-width="2"${v === 'none' ? ' stroke-dasharray="4 3"' : ''}/><text x="350" y="114" text-anchor="middle" font-size="10" fill="var(--muted)">${h(`${shortOf(whole.jira)} · builds ${whole.base_build} → ${whole.tip_build} · ${whole.result || 'no run'}`)}</text></g>`;
+    }
+    svg += '</svg>';
+    let col = '<div class="tdm-narrow">';
+    builds.forEach((b, i) => {
+      const up = isUp(b);
+      col += `<button class="tdm-nrow" data-goto-tab="tdm"><span class="sq round${up ? ' st-ready' : ''}"></span> <b>build ${h(b.n)}</b> <span class="mono small dim">${h(tail(b.elink_version))}</span>${up ? ' <span class="small dim">uploaded</span>' : ''}</button>`;
+      if (i + 1 < builds.length) { const c = cmpFor(b.n, builds[i + 1].n); col += `<div class="tdm-narc small dim">↓ ${c ? `${jiraLink(c.jira)} ${h(shortOf(c.jira))} · ${h(c.result || 'no run')}` : ''}</div>`; }
+    });
+    if (whole) col += `<div class="tdm-narc small dim">${jiraLink(whole.jira)} builds ${h(whole.base_build)} → ${h(whole.tip_build)} · ${h(whole.result || 'no run')}</div>`;
+    return svg + col + '</div>';
+  }
+
+  // Panel 4: stack health. Per level the spine's ahead / behind, per PR an age dot, ahead / behind micro bars and the GitHub merge state.
+  let healthFilter = Object.assign({ only: null, problems: false, hideDrafts: false }, visPref('health') || {});
+  function renderHealth() {
+    const prs = data.prs, now = Date.now();
+    const ageDays = iso => iso ? (now - Date.parse(iso)) / 86400000 : null;
+    const dotColor = d => d == null ? 'var(--line)' : d < 2 ? 'var(--ok)' : d <= 7 ? 'var(--muted)' : 'var(--warn)';
+    const isProblem = p => (p.behind || 0) > 0 || (p.merge_state && p.merge_state !== 'CLEAN') || (ageDays(p.head_committed_at) || 0) > 7;
+    const test = { all: () => true, open: p => p.state === 'OPEN', ready: p => prState(p) === 'ready', approved: p => prState(p) === 'approved', merged: p => p.state === 'MERGED', behind: p => (p.behind || 0) > 0, dirty: p => p.merge_state === 'DIRTY' };
+    const f = healthFilter;
+    const keep = p => test[f.only || 'all'](p) && (!f.problems || isProblem(p)) && (!f.hideDrafts || !p.isDraft);
+    const chip = (key, label) => `<button class="chip tog${f.only === key || (key === 'all' && !f.only) ? ' on' : ''}" data-health-only="${key}" title="${key === 'all' ? 'show every PR' : 'only these PRs'}">${prs.filter(test[key]).length} ${label}</button>`;
+    const bar = (n, cls) => `<i class="${cls}" style="width:${Math.min(60, 6 * Math.sqrt(n || 0)).toFixed(0)}px"></i>`;
+    const prRow = p => `<a class="hp" href="${h(p.url)}" target="_blank" rel="noopener" title="${h(`ahead ${p.ahead == null ? '?' : p.ahead} / behind ${p.behind == null ? '?' : p.behind} vs ${shortBranch(p.baseRefName)}; head ${p.head_sha || '?'} committed ${fmtDate(p.head_committed_at)}; GitHub: ${p.merge_state || '?'}`)}">
+      <span class="dot" style="background:${dotColor(ageDays(p.head_committed_at))}"></span><span class="mono">#${h(p.number)}</span>
+      <span class="mb">${bar(p.behind, 'behind')}${bar(p.ahead, 'ahead')}</span><span class="mono ab">${h(p.ahead == null ? '?' : p.ahead)}↑ ${h(p.behind == null ? '?' : p.behind)}↓</span>
+      <span class="vpill st-${prState(p)} tiny">${h(PR_STATE_LABEL[prState(p)])}</span>
+      ${p.merge_state && p.merge_state !== 'CLEAN' ? `<span class="chip ms${p.merge_state === 'DIRTY' ? ' dirty' : ''}">${h(p.merge_state)}</span>` : ''}
+      ${(p.behind || 0) > 0 ? `<button class="mini" data-copy="${h(`gh pr checkout ${p.number} -R ${data.code_repo}`)}" title="copy the checkout command (rebase it locally)">checkout</button>` : ''}
+      <span class="dim small ttl">${h(p.title || '')}</span></a>`;
+    const levels = mergeLevels();
+    const row = l => {
+      const prev = levels[levels.indexOf(l) - 1];
+      const ahead = l.spine_ahead, own = l.spine_own;
+      const carried = ahead == null ? '?' : ahead - (own || 0);
+      const mine = prs.filter(p => (l.inner_prs || []).includes(p.number) || (l.pr && l.pr.number === p.number)).filter(keep);
+      return `<div class="mm-line"><span class="chip short">${h(l.short)}</span> ${jiraLink(l.key)} <span class="spine">spine <code>${h(shortBranch(l.branch))}</code>: ${h(ahead == null ? '?' : ahead)}↑ (${h(carried)} carried from ${h(prev ? prev.short : 'below')} · ${h(own == null ? '?' : own)} own) ${h(l.spine_behind == null ? '?' : l.spine_behind)}↓ · tip <code>${h(l.tip_sha || '?')}</code> ${h(fmtDate(l.tip_committed_at))}</span></div>
+        <div class="hp-list">${mine.map(prRow).join('') || '<span class="dim small">no PRs match the filters</span>'}</div>`;
+    };
+    $('#vis-health').innerHTML = `<h2>Stack health</h2>
+      <div class="vis-bar">${chip('all', 'PRs')} ${chip('open', 'open')} ${chip('ready', 'ready')} ${chip('approved', 'approved')} ${chip('merged', 'merged')} ${chip('behind', 'behind')} ${chip('dirty', 'dirty')} <span class="grow"></span>
+        <label><input type="checkbox" id="h-problems"${f.problems ? ' checked' : ''}> only problems</label> <label><input type="checkbox" id="h-drafts"${f.hideDrafts ? ' checked' : ''}> hide drafts</label></div>
+      <p class="dim small">Per PR: age dot (green &lt; 2 days, grey ≤ 7, amber older), hollow bar = commits behind its base, solid = ahead (square-root scaled), then the GitHub merge state when not CLEAN. A problem is behind &gt; 0, a non-CLEAN merge state or a head older than 7 days. Development is at <code>${h(data.dev_sha || '?')}</code>.</p>
+      ${renderLevelRows(row)}`;
+    $('#h-problems').addEventListener('change', e => { healthFilter.problems = e.target.checked; visPref('health', healthFilter); renderHealth(); });
+    $('#h-drafts').addEventListener('change', e => { healthFilter.hideDrafts = e.target.checked; visPref('health', healthFilter); renderHealth(); });
+  }
+  // Clicks inside the Visuals tab that re-render one panel. Tab jumps (data-goto-tab) and copies stay with the document handler.
+  $('#tab-visuals').addEventListener('click', e => {
+    const toggle = e.target.closest('[data-fp-toggle]');
+    if (toggle) { const off = new Set(visPref('blocksOff') || []); const s = toggle.dataset.fpToggle; if (off.has(s)) off.delete(s); else off.add(s); visPref('blocksOff', Array.from(off)); renderFootprint(); return; }
+    if (e.target.closest('[data-fp-clear]')) { fpFilter = null; renderFootprint(); return; }
+    const seg = e.target.closest('.seg[data-fp-block]');
+    if (seg) { fpFilter = { kind: 'seg', block: seg.dataset.fpBlock, folder: seg.dataset.fpFolder }; renderFootprint(); $('#vis-files').scrollIntoView({ block: 'nearest' }); return; }
+    const cell = e.target.closest('.cell[data-ov-a]');
+    if (cell) { fpFilter = { kind: 'pair', a: cell.dataset.ovA, b: cell.dataset.ovB }; renderFootprint(); $('#vis-files').scrollIntoView({ block: 'nearest' }); return; }
+    const only = e.target.closest('[data-health-only]');
+    if (only) { const k = only.dataset.healthOnly; healthFilter.only = (k === 'all' || healthFilter.only === k) ? null : k; visPref('health', healthFilter); renderHealth(); return; }
+    const lvl = e.target.closest('[data-stack-level]');
+    if (lvl) { showTab('stack'); const el = document.getElementById('level-' + lvl.dataset.stackLevel); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+  });
+
   // ---------- interactions ----------
   function copyText(text) {
     const done = () => toast('copied: ' + text);
@@ -747,7 +1184,20 @@ footer { margin-top: 28px; color: var(--muted); font-size: 12px; text-align: cen
     const v2 = e.target.closest('[data-v2]');
     if (v2) { runV2(v2.dataset); return; }
     const goto = e.target.closest('[data-goto-tab]');
-    if (goto) { showTab(goto.dataset.gotoTab); return; }
+    if (goto) {
+      showTab(goto.dataset.gotoTab);
+      if (goto.dataset.gotoLevel) {
+        const level = $('#f-level'), status = $('#f-status');
+        if (level) { level.value = goto.dataset.gotoLevel; level.dispatchEvent(new Event('change')); }
+        if (status) {
+          const want = (goto.dataset.gotoStatus || '').toLowerCase();
+          const option = Array.from(status.options).find(o => o.value.toLowerCase() === want);
+          status.value = option ? option.value : '';
+          status.dispatchEvent(new Event('change'));
+        }
+      }
+      return;
+    }
     const affects = e.target.closest('[data-affects]');
     if (affects) { setAffects(affects.dataset.affects); return; }
     // A click elsewhere on a decision row toggles its affects row. Links and buttons keep their own behaviour; a drag that selected text is not a toggle.
