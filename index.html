@@ -267,11 +267,11 @@ footer { margin-top: 28px; color: var(--muted); font-size: 12px; text-align: cen
 
 <nav class="tabs" role="tablist">
   <button data-tab="stack" class="active">Stack</button>
+  <button data-tab="visuals">Visuals</button>
   <button data-tab="cards">Cards</button>
   <button data-tab="checker">Checker</button>
   <button data-tab="review">Review</button>
   <button data-tab="decisions">Decisions</button>
-  <button data-tab="visuals">Visuals</button>
   <button data-tab="tdm">TDM</button>
   <button data-tab="links">Links</button>
 </nav>
@@ -279,11 +279,11 @@ footer { margin-top: 28px; color: var(--muted); font-size: 12px; text-align: cen
 <main>
   <section id="setup" class="panel setup" hidden></section>
   <section id="tab-stack" class="tab active"></section>
+  <section id="tab-visuals" class="tab"></section>
   <section id="tab-cards" class="tab"></section>
   <section id="tab-checker" class="tab"></section>
   <section id="tab-review" class="tab"></section>
   <section id="tab-decisions" class="tab"></section>
-  <section id="tab-visuals" class="tab"></section>
   <section id="tab-tdm" class="tab"></section>
   <section id="tab-links" class="tab"></section>
 </main>
@@ -331,7 +331,7 @@ footer { margin-top: 28px; color: var(--muted); font-size: 12px; text-align: cen
   const STATUS_ICON = { 'Backlog': '⚪', 'In Progress': '🔵', 'In Review': '🟡', 'Ready to Start': '🟠', 'Done': '✅' };
   const WORK_LABEL = { done: 'done', partly: 'partly', wip: 'wip', pending: 'pending', na: 'n/a' };
   const REVIEW_BADGE = { actuarial: { icon: '🧮', label: 'actuarial review', cls: 'actuarial' }, decision: { icon: '📝', label: 'decision', cls: 'decision' } };
-  const TABS = ['stack', 'cards', 'checker', 'review', 'decisions', 'visuals', 'tdm', 'links'];
+  const TABS = ['stack', 'visuals', 'cards', 'checker', 'review', 'decisions', 'tdm', 'links'];
   const $ = sel => document.querySelector(sel);
   const h = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
