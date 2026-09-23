@@ -57,6 +57,11 @@ h3 { font-size: 14px; margin: 14px 0 6px; color: var(--muted); font-weight: 600;
 .chip.pr.merged { border-color: #8e5cd9; }
 .chip.pr.closed { opacity: .6; text-decoration: line-through; }
 .chip.dim { opacity: .65; }
+.chip.review { border: 1px solid var(--warn); background: var(--chip); cursor: pointer; }
+.chip.review.decision { border-color: var(--line); }
+.review-list div { margin: 3px 0; }
+.options { margin: 0; padding-left: 16px; }
+.filters label { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); font-size: 12.5px; }
 .mini { background: var(--panel); border: 1px solid var(--line); border-radius: 5px; padding: 0 6px; font-size: 11.5px; line-height: 1.6; color: var(--muted); vertical-align: middle; }
 .mini:hover { background: var(--hover); color: var(--text); }
 .actions { display: inline-flex; gap: 3px; flex-wrap: wrap; vertical-align: middle; }
@@ -130,6 +135,7 @@ details summary { cursor: pointer; color: var(--muted); }
   <button data-tab="stack" class="active">Stack</button>
   <button data-tab="cards">Cards</button>
   <button data-tab="checker">Checker</button>
+  <button data-tab="review">Review</button>
   <button data-tab="tdm">TDM</button>
   <button data-tab="links">Links</button>
 </nav>
@@ -139,6 +145,7 @@ details summary { cursor: pointer; color: var(--muted); }
   <section id="tab-stack" class="tab active"></section>
   <section id="tab-cards" class="tab"></section>
   <section id="tab-checker" class="tab"></section>
+  <section id="tab-review" class="tab"></section>
   <section id="tab-tdm" class="tab"></section>
   <section id="tab-links" class="tab"></section>
 </main>
@@ -182,6 +189,8 @@ details summary { cursor: pointer; color: var(--muted); }
   const LS_KEY = 'dashboard.settings';
   const STATUS_ICON = { 'Backlog': '⚪', 'In Progress': '🔵', 'In Review': '🟡', 'Ready to Start': '🟠', 'Done': '✅' };
   const WORK_LABEL = { done: 'done', partly: 'partly', wip: 'wip', pending: 'pending', na: 'n/a' };
+  const REVIEW_BADGE = { actuarial: { icon: '🧮', label: 'actuarial review', cls: 'actuarial' }, decision: { icon: '📝', label: 'decision', cls: 'decision' } };
+  const TABS = ['stack', 'cards', 'checker', 'review', 'tdm', 'links'];
   const $ = sel => document.querySelector(sel);
   const h = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -320,7 +329,7 @@ details summary { cursor: pointer; color: var(--muted); }
       </ol>
       <p class="dim small">Two tokens because a fine-grained token has one resource owner. A classic <code>repo</code> token covers both repos; paste it in both fields. Tokens stay in this browser's localStorage. Nothing here writes to GitHub or Jira.</p>`;
     $('#meta').innerHTML = `<span class="${errorMessage ? 'bad' : ''}">${errorMessage ? 'load failed' : 'no data token set'}</span>`;
-    ['stack', 'cards', 'checker', 'tdm', 'links'].forEach(t => { $(`#tab-${t}`).innerHTML = ''; });
+    TABS.forEach(t => { $(`#tab-${t}`).innerHTML = ''; });
   }
 
   // ---------- helpers ----------
@@ -378,6 +387,21 @@ details summary { cursor: pointer; color: var(--muted); }
     if (!text) return '<span class="dim">no description in the plan</span>';
     return h(text).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
   }
+  // Review items: open questions on a card (from data.review_items). Badge = 🧮 when any open item needs domain judgement, else 📝.
+  const reviewItems = () => data.review_items || [];
+  const openReviewsOf = key => reviewItems().filter(i => i.status === 'open' && i.card === key);
+  const badgeOf = items => items.some(i => i.actuarial) ? REVIEW_BADGE.actuarial : REVIEW_BADGE.decision;
+  function reviewBadge(card) {
+    if (!card || !card.needs_review) return '';
+    const items = openReviewsOf(card.key), b = badgeOf(items), n = items.length || card.review_count;
+    const title = items.length ? items.map(i => `${i.id}: ${i.what}`).join('\n') : `${n} open review item(s)`;
+    return `<button class="chip review ${b.cls}" data-review="${h(card.key)}" title="${h(title)}">${b.icon} ${b.label}${n > 1 ? ` (${n})` : ''}</button>`;
+  }
+  function reviewList(card) {
+    if (!card || !card.needs_review) return '';
+    const items = openReviewsOf(card.key);
+    return `<div class="brief review-list" data-review-list="${h(card.key)}" hidden>${items.map(i => `<div><b class="mono">${h(i.id)}</b> ${h(i.what)} <span class="dim">default: ${h(i.default)} · ${h(i.owner)}</span></div>`).join('') || '<span class="dim">see the Review tab</span>'}</div>`;
+  }
   function shortBranch(b) { return b ? b.slice(b.lastIndexOf('/') + 1) : ''; }
   function branchHtml(item) {
     if (!item.branch) return '<span class="dim">no branch yet</span>';
@@ -393,7 +417,7 @@ details summary { cursor: pointer; color: var(--muted); }
       : live.state === 'failed' ? `<span class="bad" title="${h(live.error)}">PR overlay failed: ${h(live.error)}</span>`
       : `<span class="dim">PR state from data.json, generated ${h(fmtDate(data.generated_at))}; add a code-repo token for live state</span>`;
     $('#meta').innerHTML = `data ${h(fmtDate(data.generated_at))} (${h(source)}) · Jira snapshot ${h(fmtDate(data.jira_snapshot_at))} · ${liveText}`;
-    renderStack(); renderCards(); renderChecker(); renderTdm(); renderLinks();
+    renderStack(); renderCards(); renderChecker(); renderReview(); renderTdm(); renderLinks();
   }
   function fmtDate(iso) { return iso ? iso.replace('T', ' ').replace(/([+-]\d\d:\d\d|Z)$/, '') : '?'; }
 
@@ -406,10 +430,11 @@ details summary { cursor: pointer; color: var(--muted); }
       out += `<div class="level"><div class="panel">
         <div class="level-head">
           <div class="level-title"><span class="chip short">${h(lvl.short)}</span> ${jiraLink(lvl.key)} <b>${h(lvl.title)}</b></div>
-          <div class="level-meta">${statusChip(c)} ${workChip(c)} ${prChip(lvl.pr)} ${prActions(lvl.pr, c)} ${closedPrs(lvl.closed_prs)} ${lvl.checker_key ? `<span class="dim">checker</span> ${jiraLink(lvl.checker_key)} ${statusChip(cards[lvl.checker_key])}` : ''} ${cardActions(c)}</div>
+          <div class="level-meta">${statusChip(c)} ${workChip(c)} ${prChip(lvl.pr)} ${prActions(lvl.pr, c)} ${closedPrs(lvl.closed_prs)} ${reviewBadge(c)} ${lvl.checker_key ? `<span class="dim">checker</span> ${jiraLink(lvl.checker_key)} ${statusChip(cards[lvl.checker_key])}` : ''} ${cardActions(c)}</div>
           <div class="level-sub">${branchHtml(lvl)} <span>→ into <code>${h(shortBranch(lvl.base_branch))}</code></span></div>
           <div class="level-sub">TDM builds <b>${h(tdm.base_build || '?')}</b> → <b>${h(tdm.tip_build || '?')}</b>${tdm.run_id ? ` · run ${h(tdm.run_id)}` : ' · no run yet'}${tdm.result ? ` · ${h(tdm.result)}` : ''} · ${ext(c.spec_url, 'docs')} · <button class="mini" data-brief="${h(c.key)}">brief</button></div>
           <div class="brief" id="brief-${h(c.key)}" hidden>${briefHtml(c)}</div>
+          ${reviewList(c)}
         </div>
         ${lvl.children.length ? `<ol class="stack-list">${lvl.children.map((k, idx) => cardRow(cards[k], idx + 1)).join('')}</ol>` : '<div class="dim small" style="margin-top:8px">Epic branch. The integration branches below merge into it, one after the other.</div>'}
       </div></div>`;
@@ -420,9 +445,10 @@ details summary { cursor: pointer; color: var(--muted); }
   function cardRow(c, pos) {
     const chk = c.checker_key ? data.cards[c.checker_key] : null;
     return `<li class="card-row">
-      <div class="row-main"><span class="pos">${pos}</span>${statusChip(c)} ${jiraLink(c.key)} <span class="chip short">${h(c.short || '')}</span> <span class="title">${h(c.title)}</span></div>
+      <div class="row-main"><span class="pos">${pos}</span>${statusChip(c)} ${jiraLink(c.key)} <span class="chip short">${h(c.short || '')}</span> <span class="title">${h(c.title)}</span> ${reviewBadge(c)}</div>
       <div class="row-side">${workChip(c)} ${prChip(c.pr)} ${prActions(c.pr, c)} ${closedPrs(c.closed_prs)} ${c.branch_exists ? `<a href="${h(c.branch_url)}" target="_blank" rel="noopener"><code>${h(shortBranch(c.branch))}</code></a>` : ''} ${chk ? `<span class="dim">check</span> ${jiraLink(chk.key)} ${statusChip(chk)}` : ''} ${ext(c.spec_url, 'spec')}${c.evidence_url ? ` · ${ext(c.evidence_url, 'evidence')}` : ''} <button class="mini" data-brief="${h(c.key)}">brief</button> ${cardActions(c)}</div>
       <div class="brief" id="brief-${h(c.key)}" hidden>${briefHtml(c)}</div>
+      ${reviewList(c)}
     </li>`;
   }
   function decisionsHtml() {
@@ -465,7 +491,7 @@ details summary { cursor: pointer; color: var(--muted); }
         const cpCard = cp && data.cards[cp];
         return `<tr>
           <td class="nowrap">${jiraLink(c.key)}<br><span class="chip short">${h(c.short || c.type)}</span></td>
-          <td>${h(c.title)}<div class="small dim">${h(c.type)}${c.work_status ? ' · plan: ' + h(WORK_LABEL[c.work_status] || c.work_status) : ''}</div></td>
+          <td>${h(c.title)} ${reviewBadge(c)}<div class="small dim">${h(c.type)}${c.work_status ? ' · plan: ' + h(WORK_LABEL[c.work_status] || c.work_status) : ''}</div>${reviewList(c)}</td>
           <td class="nowrap">${statusChip(c)}</td>
           <td>${h(c.assignee || '')}</td>
           <td class="nowrap">${prChip(c.pr)}<div>${prActions(c.pr, c)}</div>${closedPrs(c.closed_prs)}</td>
@@ -500,13 +526,66 @@ details summary { cursor: pointer; color: var(--muted); }
       out += `<div class="panel"><ol class="stack-list" style="border-top:0;margin-top:0">${g.items.map(c => {
         const prog = c.programmer_key ? data.cards[c.programmer_key] : null;
         return `<li class="card-row">
-          <div class="row-main">${statusChip(c)} ${jiraLink(c.key)} <span class="chip short">${h(c.short || '')}</span> <span class="title">${h(c.title)}</span></div>
-          <div class="row-side">${prog ? `<span class="dim">programmer</span> ${jiraLink(prog.key)} ${statusChip(prog)} ${prChip(prog.pr)} ${prActions(prog.pr, prog)} ${prog.branch_exists ? `<a href="${h(prog.branch_url)}" target="_blank" rel="noopener"><code>${h(shortBranch(prog.branch))}</code></a>` : ''}` : ''} ${ext(c.spec_url, 'check procedure (spec)')}${c.evidence_url ? ` · ${ext(c.evidence_url, 'evidence')}` : ''} <button class="mini" data-brief="${h(c.key)}">brief</button> ${cardActions(c)}</div>
+          <div class="row-main">${statusChip(c)} ${jiraLink(c.key)} <span class="chip short">${h(c.short || '')}</span> <span class="title">${h(c.title)}</span> ${reviewBadge(c)}</div>
+          <div class="row-side">${prog ? `<span class="dim">programmer</span> ${jiraLink(prog.key)} ${statusChip(prog)} ${prChip(prog.pr)} ${prActions(prog.pr, prog)} ${reviewBadge(prog)} ${prog.branch_exists ? `<a href="${h(prog.branch_url)}" target="_blank" rel="noopener"><code>${h(shortBranch(prog.branch))}</code></a>` : ''}` : ''} ${ext(c.spec_url, 'check procedure (spec)')}${c.evidence_url ? ` · ${ext(c.evidence_url, 'evidence')}` : ''} <button class="mini" data-brief="${h(c.key)}">brief</button> ${cardActions(c)}</div>
           <div class="brief" id="brief-${h(c.key)}" hidden>${briefHtml(c)}</div>
+          ${reviewList(c)}${prog ? reviewList(prog) : ''}
         </li>`;
       }).join('')}</ol></div></div>`;
     });
     $('#tab-checker').innerHTML = out;
+  }
+
+  function renderReview() {
+    const items = reviewItems();
+    const open = items.filter(i => i.status === 'open'), decided = items.filter(i => i.status !== 'open');
+    const tabButton = document.querySelector('.tabs button[data-tab="review"]');
+    if (tabButton) tabButton.textContent = `Review (${open.length})`;
+    const uniq = arr => Array.from(new Set(arr.filter(Boolean))).sort();
+    const opt = vals => vals.map(v => `<option value="${h(v)}">${h(v)}</option>`).join('');
+    $('#tab-review').innerHTML = `
+      <p class="dim small">Open questions on the cards and PRs, grouped by card in stack order. ${REVIEW_BADGE.actuarial.icon} needs domain judgement (message wording, which topic documents a switch, whether a condition is reachable); ${REVIEW_BADGE.decision.icon} is a process decision. Items are closed in the data repo (see its README); the page picks the change up on the next refresh.</p>
+      <div class="filters">
+        <select id="r-owner"><option value="">Any owner</option>${opt(uniq(items.map(i => i.owner)))}</select>
+        <select id="r-kind"><option value="">Any kind</option>${opt(uniq(items.map(i => i.kind)))}</select>
+        <label><input type="checkbox" id="r-actuarial"> ${REVIEW_BADGE.actuarial.icon} ${h(REVIEW_BADGE.actuarial.label)} only</label>
+      </div>
+      <div id="review-open"></div>
+      <details style="margin-top:14px"><summary id="review-decided-summary"></summary><div id="review-decided"></div></details>`;
+    const apply = () => {
+      const owner = $('#r-owner').value, kind = $('#r-kind').value, actuarialOnly = $('#r-actuarial').checked;
+      const keep = i => (!owner || i.owner === owner) && (!kind || i.kind === kind) && (!actuarialOnly || i.actuarial);
+      const openShown = open.filter(keep), decidedShown = decided.filter(keep);
+      $('#review-open').innerHTML = openShown.length ? reviewGroups(openShown, false) : '<div class="dim">no open items</div>';
+      $('#review-decided-summary').textContent = `Decided (${decidedShown.length}${decidedShown.length !== decided.length ? ` of ${decided.length}` : ''})`;
+      $('#review-decided').innerHTML = decidedShown.length ? reviewGroups(decidedShown, true) : '<div class="dim small">none</div>';
+    };
+    ['#r-owner', '#r-kind', '#r-actuarial'].forEach(s => $(s).addEventListener('change', apply));
+    apply();
+  }
+  function reviewGroups(items, withDecided) {
+    const byCard = new Map();
+    items.forEach(i => { const k = i.card || ''; if (!byCard.has(k)) byCard.set(k, []); byCard.get(k).push(i); });
+    const keys = Array.from(byCard.keys()).sort((a, b) => posOf(a) - posOf(b) || a.localeCompare(b, undefined, { numeric: true }));
+    return keys.map(k => {
+      const card = data.cards[k];
+      const head = card ? `<span class="chip short">${h(card.short || '')}</span> ${jiraLink(k)} ${h(card.title)} ${statusChip(card)} ${prChip(card.pr)}` : '<span class="dim">No card</span>';
+      return `<div class="group"><h3>${head}</h3><div class="panel tablewrap"><table><thead><tr><th>Id</th><th>Card / PR</th><th>What</th><th>Options</th><th>Default</th><th>Owner</th><th></th>${withDecided ? '<th>Decided</th>' : ''}</tr></thead><tbody>${byCard.get(k).map(i => reviewRow(i, withDecided)).join('')}</tbody></table></div></div>`;
+    }).join('');
+  }
+  function reviewRow(i, withDecided) {
+    const b = i.actuarial ? REVIEW_BADGE.actuarial : REVIEW_BADGE.decision;
+    const pr = i.pr ? (data.prs.find(p => p.number === i.pr) || { number: i.pr, url: `https://github.com/${data.code_repo}/pull/${i.pr}` }) : null;
+    return `<tr>
+      <td class="nowrap mono">${h(i.id)}</td>
+      <td class="nowrap">${jiraLink(i.card)}${pr ? `<br><a href="${h(pr.url)}" target="_blank" rel="noopener">#${h(pr.number)}</a>` : ''}</td>
+      <td>${h(i.what)}<div class="small dim">${h(i.kind)}${i.source ? ' · ' + h(i.source) : ''}</div></td>
+      <td><ul class="options">${(i.options || []).map(o => `<li>${h(o)}</li>`).join('')}</ul></td>
+      <td>${h(i.default)}</td>
+      <td class="nowrap">${h(i.owner)}</td>
+      <td class="nowrap" title="${h(b.label)}">${b.icon}</td>
+      ${withDecided ? `<td>${h(i.decided)}</td>` : ''}
+    </tr>`;
   }
 
   function renderTdm() {
@@ -553,6 +632,13 @@ details summary { cursor: pointer; color: var(--muted); }
     if (copy) { copyText(copy.dataset.copy); return; }
     const brief = e.target.closest('[data-brief]');
     if (brief) { const el = document.getElementById('brief-' + brief.dataset.brief); if (el) el.hidden = !el.hidden; return; }
+    const review = e.target.closest('[data-review]');
+    if (review) {
+      const host = review.closest('li, tr, .level-head');
+      const list = host && host.querySelector(`[data-review-list="${review.dataset.review}"]`);
+      if (list) list.hidden = !list.hidden;
+      return;
+    }
     const v2 = e.target.closest('[data-v2]');
     if (v2) { runV2(v2.dataset); return; }
     const tab = e.target.closest('.tabs button');
@@ -607,7 +693,7 @@ details summary { cursor: pointer; color: var(--muted); }
 
   let savedTab = 'stack';
   try { savedTab = localStorage.getItem('dashboard.tab') || 'stack'; } catch (e) { /* ignore */ }
-  showTab(['stack', 'cards', 'checker', 'tdm', 'links'].includes(savedTab) ? savedTab : 'stack');
+  showTab(TABS.includes(savedTab) ? savedTab : 'stack');
   load();
 })();
 </script>

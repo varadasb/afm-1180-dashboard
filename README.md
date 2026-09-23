@@ -48,10 +48,13 @@ Clone this repo, copy or symlink the data repo's `data.json` next to `index.html
 | Stack | The integration levels in merge order, each with its branch, PR, test-build ids and the cards in stack order |
 | Cards | All cards as a table with filters: build, type, assignee, status, text |
 | Checker | The checker's cards grouped ready-to-start / in progress / done / waiting, with the programmer PR and the spec link |
+| Review | Open review items (questions that need a human decision) grouped by card in stack order, with options, default, owner and a flag for items that need domain judgement; filters by owner and kind; decided items collapsed below. The tab label carries the open count |
 | TDM | The builds table and the comparisons table |
 | Links | Every document, Jira filter and GitHub link, grouped |
 
 Chips: Backlog ⚪, In Progress 🔵, In Review 🟡, Ready to Start 🟠, Done ✅; PR draft 📝, ready 🟢, merged 🟣, approved ✔.
+
+Review badges: a card with open review items (`needs_review` in `data.json`) shows `🧮 actuarial review` when any of its items needs domain judgement, else `📝 decision`, in the Stack, Cards and Checker views. Hover shows the item sentences, click expands them under the row. The items themselves (`review_items[]`) live in the data repo; closing one is an edit there.
 
 Quick actions (v1): each open PR has buttons that copy a ready `gh` command (`ready`, `approve`, `web`, `checkout`). `actions.js` holds the action registry; the `v2` section is the hook for API writes (those will use the code repo token).
 
@@ -61,5 +64,6 @@ Quick actions (v1): each open PR has buttons that copy a ready `gh` command (`re
 |---|---|
 | v1 | Links, status chips, live PR overlay, copy-to-clipboard `gh` commands |
 | v1.1 | Separate data and code-repo tokens; PR state from `data.json` when no code-repo token is set |
+| v1.2 | Review tab and per-card review badges, driven by `review_items[]` in the data file |
 | v2 | GitHub API writes from the page: mark ready, approve, comment; Jira transitions via deep links |
 | v3 | Scheduled data refresh, notifications when a card becomes ready to check |
