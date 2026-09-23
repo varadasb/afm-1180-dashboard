@@ -123,9 +123,13 @@ details summary { cursor: pointer; color: var(--muted); }
 td.dflt { background: var(--code); border-left: 3px solid var(--accent); }
 .chip.open { border: 1px solid var(--warn); }
 .chip.decided { border: 1px solid var(--ok); }
-/* affects: one full-width row under each decision, always visible */
-tr:has(+ tr.affects) td { border-bottom: 0; }
+/* affects: one full-width row under each decision, hidden until its toggle (or the row) is clicked */
+tr:has(+ tr.affects:not([hidden])) td { border-bottom: 0; }
+tr[data-decision] { cursor: pointer; }
 tr.affects td { padding: 0 8px 10px 8px; }
+.aff-toggle { margin-top: 3px; font-family: var(--sans); }
+.aff-toggle::before { content: "▸ "; }
+.aff-toggle[aria-expanded="true"]::before { content: "▾ "; }
 .affects-list { margin: 0; padding-left: 18px; font-size: 12.5px; color: var(--muted); }
 .affects-list li { margin: 3px 0; color: var(--text); }
 .affects-list .refs { margin-right: 4px; }
@@ -195,7 +199,7 @@ footer { margin-top: 28px; color: var(--muted); font-size: 12px; text-align: cen
   <p id="settings-note"></p>
 </aside>
 
-<footer>AFM-1180 Dashboard v1.5</footer>
+<footer>AFM-1180 Dashboard v1.6</footer>
 <div id="toast" role="status"></div>
 
 <script src="actions.js"></script>
@@ -617,15 +621,44 @@ footer { margin-top: 28px; color: var(--muted); font-size: 12px; text-align: cen
     const plan = ((data.links || {}).SharePoint || []).find(l => l.file === 'AFM-1180 structure.md');
     $('#tab-decisions').innerHTML = `
       <p class="dim small">${plan ? spLink(plan.url, 'AFM-1180 structure.md (SharePoint)') + ' · ' : ''}Section 11 of the plan plus the decision items owned by ${h(data.people.programmer.name.split(' ')[0])} in Review. <b>Default</b> is what the plan does if nobody objects. <b>Copy reply</b> copies "Id: default" for chat; edit the choice there and Claude records it in the plan. Under each row: the cards and PRs the decision touches and how (Affects column of the plan). This page does not write.</p>
-      <div class="filters"><label><input type="checkbox" id="d-open" checked> open only</label> <span class="dim small" id="d-count"></span></div>
+      <div class="filters"><label><input type="checkbox" id="d-open" checked> open only</label> <button class="mini" id="d-all" title="show or hide the affects rows of every listed decision">expand all</button> <span class="dim small" id="d-count"></span></div>
       <div class="panel tablewrap"><table><thead><tr><th>Id</th><th>Decision</th><th>Default</th><th>Status</th><th>Links</th><th></th></tr></thead><tbody id="decisions-body"></tbody></table></div>`;
     const apply = () => {
       const rows = $('#d-open').checked ? open : all;
       $('#decisions-body').innerHTML = rows.map(decisionRow).join('') || '<tr><td colspan="6" class="dim">none</td></tr>';
       $('#d-count').textContent = `${rows.length} of ${all.length} · ${open.length} open, ${all.length - open.length} decided`;
+      updateAffectsAll();
     };
     $('#d-open').addEventListener('change', apply);
+    $('#d-all').addEventListener('click', () => {
+      const rows = Array.from(document.querySelectorAll('#decisions-body tr.affects'));
+      const show = rows.some(r => r.hidden);
+      rows.forEach(r => setAffects(r.id.slice('affects-'.length), show));
+    });
     apply();
+  }
+  // Expanded affects rows, by decision id. Kept in localStorage so a reload keeps the choice; a per-viewer convenience only.
+  const AFFECTS_KEY = 'dashboard.decisions.affects';
+  let openAffects = new Set();
+  try { openAffects = new Set(JSON.parse(localStorage.getItem(AFFECTS_KEY) || '[]')); } catch (e) { /* private mode or corrupt */ }
+  // show: true / false, or undefined to flip. The affects row always directly follows its decision row, which holds the toggle.
+  function setAffects(id, show) {
+    const row = document.getElementById('affects-' + id);
+    if (!row) return;
+    if (show === undefined) show = row.hidden;
+    row.hidden = !show;
+    row.previousElementSibling.querySelector('.aff-toggle').setAttribute('aria-expanded', show);
+    if (show) openAffects.add(id); else openAffects.delete(id);
+    try { localStorage.setItem(AFFECTS_KEY, JSON.stringify(Array.from(openAffects))); } catch (e) { /* ignore */ }
+    updateAffectsAll();
+  }
+  // The button reads "collapse all" only when every listed affects row is open.
+  function updateAffectsAll() {
+    const rows = Array.from(document.querySelectorAll('#decisions-body tr.affects'));
+    const btn = $('#d-all');
+    if (!btn) return;
+    btn.disabled = !rows.length;
+    btn.textContent = rows.length && rows.every(r => !r.hidden) ? 'collapse all' : 'expand all';
   }
   const prChipOf = n => { const pr = data.prs.find(p => p.number === n); return pr ? prChip(pr) : `<a class="chip pr dim" href="https://github.com/${h(data.code_repo)}/pull/${h(n)}" target="_blank" rel="noopener" title="not in the data file">#${h(n)}</a>`; };
   // Affects: x.affects = [{ref, how, prs, cards}] (plan §11 Affects column / review item `impact`). Chips for the PRs and
@@ -639,7 +672,7 @@ footer { margin-top: 28px; color: var(--muted); font-size: 12px; text-align: cen
       if (!chips.length || /[A-Za-z]{4,}/.test(rest)) chips.push(`<span class="chip dim" title="${h(a.ref)}">${h(chips.length ? rest : a.ref)}</span>`);
       return `<li><span class="refs">${chips.join(' ')}</span> ${md(a.how)}</li>`;
     });
-    return `<tr class="affects"><td colspan="6"><ul class="affects-list">${items.join('')}</ul></td></tr>`;
+    return `<tr class="affects" id="affects-${h(x.id)}"${openAffects.has(x.id) ? '' : ' hidden'}><td colspan="6"><ul class="affects-list">${items.join('')}</ul></td></tr>`;
   }
   function decisionRow(x) {
     const prs = (x.prs || []).map(prChipOf);
@@ -648,8 +681,10 @@ footer { margin-top: 28px; color: var(--muted); font-size: 12px; text-align: cen
     const links = prs.concat(cards, reviews).join(' ') || '<span class="dim">–</span>';
     const status = x.status === 'open' ? '<span class="chip open">⏳ open</span>' : '<span class="chip decided">✅ decided</span>';
     const decided = x.status !== 'open' && x.decided && x.decided !== x.default ? `<div class="small">${md(x.decided)}</div>` : '';
-    return `<tr>
-      <td class="nowrap mono">${h(x.id)}</td>
+    const affectsCount = (x.affects || []).length;
+    const toggle = affectsCount ? `<br><button class="mini aff-toggle" data-affects="${h(x.id)}" aria-expanded="${openAffects.has(x.id)}" aria-controls="affects-${h(x.id)}" title="show or hide the cards and PRs this decision touches">affects (${affectsCount})</button>` : '';
+    return `<tr${affectsCount ? ` data-decision="${h(x.id)}"` : ''}>
+      <td class="nowrap mono">${h(x.id)}${toggle}</td>
       <td>${md(x.question)}<div class="small dim">${h(x.source)}</div></td>
       <td class="dflt">${md(x.default)}</td>
       <td class="nowrap">${status}${decided}</td>
@@ -713,6 +748,11 @@ footer { margin-top: 28px; color: var(--muted); font-size: 12px; text-align: cen
     if (v2) { runV2(v2.dataset); return; }
     const goto = e.target.closest('[data-goto-tab]');
     if (goto) { showTab(goto.dataset.gotoTab); return; }
+    const affects = e.target.closest('[data-affects]');
+    if (affects) { setAffects(affects.dataset.affects); return; }
+    // A click elsewhere on a decision row toggles its affects row. Links and buttons keep their own behaviour; a drag that selected text is not a toggle.
+    const decision = e.target.closest('tr[data-decision]');
+    if (decision) { if (!e.target.closest('a, button') && !String(document.getSelection() || '')) setAffects(decision.dataset.decision); return; }
     const tab = e.target.closest('.tabs button');
     if (tab) { showTab(tab.dataset.tab); }
   });
