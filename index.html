@@ -317,7 +317,7 @@ footer { margin-top: 28px; color: var(--muted); font-size: 12px; text-align: cen
   <p id="settings-note"></p>
 </aside>
 
-<footer>AFM-1180 Dashboard v1.7</footer>
+<footer>AFM-1180 Dashboard v1.9</footer>
 <div id="toast" role="status"></div>
 
 <script src="actions.js"></script>
@@ -423,15 +423,18 @@ footer { margin-top: 28px; color: var(--muted); font-size: 12px; text-align: cen
     });
     const prs = Object.values(byNumber).sort((a, b) => a.number - b.number);
     const ns = data.branch_prefix.slice(0, data.branch_prefix.lastIndexOf('/') + 1);
+    // A spine PR (head = an integration branch) belongs to that level's MERGE-n card, not to the integration card (as in build_data.py).
+    const spineCardOf = {};
+    data.levels.forEach(l => { if (l.branch && l.merge_card) spineCardOf[l.branch] = l.merge_card; });
     const assign = card => {
       const stem = `${ns}afm-${card.key.split('-')[1]}`;
-      const mine = prs.filter(p => p.headRefName === stem || p.headRefName.startsWith(stem + '-'));
+      const mine = prs.filter(p => spineCardOf[p.headRefName] ? spineCardOf[p.headRefName] === card.key : (p.headRefName === stem || p.headRefName.startsWith(stem + '-')));
       const open = mine.filter(p => p.state === 'OPEN' || p.state === 'MERGED').sort((a, b) => (a.state !== 'OPEN') - (b.state !== 'OPEN') || b.number - a.number);
       card.pr = open[0] || null;
       card.closed_prs = mine.filter(p => p.state === 'CLOSED');
     };
     Object.values(data.cards).forEach(assign);
-    data.levels.forEach(l => { assign(l); });
+    data.levels.forEach(l => { assign(l); const merge = l.merge_card && data.cards[l.merge_card]; if (merge && merge.pr) l.pr = merge.pr; });
     data.prs = prs;
   }
 
@@ -479,6 +482,7 @@ footer { margin-top: 28px; color: var(--muted); font-size: 12px; text-align: cen
     data.levels.forEach(l => {
       stackPos[l.key] = l.order * 100;
       l.children.forEach((k, i) => { stackPos[k] = l.order * 100 + i + 1; });
+      if (l.tdm_key) stackPos[l.tdm_key] = l.order * 100 + 0.5;
     });
     Object.values(data.cards).forEach(c => {
       if (stackPos[c.key] == null && c.programmer_key && stackPos[c.programmer_key] != null) stackPos[c.key] = stackPos[c.programmer_key] + 0.5;
@@ -546,6 +550,18 @@ footer { margin-top: 28px; color: var(--muted); font-size: 12px; text-align: cen
     return `<div class="brief review-list" data-review-list="${h(card.key)}" hidden>${items.map(i => `<div><b class="mono">${h(i.id)}</b> ${h(i.what)} <span class="dim">default: ${h(i.default)} · ${h(i.owner)}</span></div>`).join('') || '<span class="dim">see the Review tab</span>'}</div>`;
   }
   function shortBranch(b) { return b ? b.slice(b.lastIndexOf('/') + 1) : ''; }
+  // Merge-phase cards (children of the level without a branch) serve one integration level (`integration_key`): a MERGE-n card
+  // merges that level's branch into the one under it, a TDM-n card (parent = the Merge phase's `tdm_key`) reviews its TDM comparison.
+  function mergePhaseHtml(c) {
+    const lvl = c.integration_key ? levelByKey(c.integration_key) : null;
+    if (!lvl || c.type === 'check') return '';
+    const own = levelByKey(c.level_key);
+    if (own && c.parent === own.tdm_key) {
+      const t = lvl.tdm || {};
+      return `<span class="dim">${h(lvl.short)} · TDM builds</span> <b>${h(t.base_build || '?')}</b> → <b>${h(t.tip_build || '?')}</b>${t.run_id ? ` · run ${h(t.run_id)}` : ' · no run yet'}${t.result ? ` · ${h(t.result)}` : ''}`;
+    }
+    return `<span class="dim">${h(lvl.short)} · → into</span> <code>${h(shortBranch(lvl.base_branch))}</code>`;
+  }
   function branchHtml(item) {
     if (!item.branch) return '<span class="dim">no branch yet</span>';
     const name = `<code>${h(shortBranch(item.branch))}</code>`;
@@ -573,9 +589,9 @@ footer { margin-top: 28px; color: var(--muted); font-size: 12px; text-align: cen
       out += `<div class="level" id="level-${h(lvl.key)}"><div class="panel">
         <div class="level-head">
           <div class="level-title"><span class="chip short">${h(lvl.short)}</span> ${jiraLink(lvl.key)} <b>${h(lvl.title)}</b></div>
-          <div class="level-meta">${statusChip(c)} ${workChip(c)} ${prChip(lvl.pr)} ${prActions(lvl.pr, c)} ${closedPrs(lvl.closed_prs)} ${reviewBadge(c)} ${lvl.checker_key ? `<span class="dim">checker</span> ${jiraLink(lvl.checker_key)} ${statusChip(cards[lvl.checker_key])}` : ''} ${cardActions(c)}</div>
-          <div class="level-sub">${branchHtml(lvl)} <span>→ into <code>${h(shortBranch(lvl.base_branch))}</code></span></div>
-          <div class="level-sub">TDM builds <b>${h(tdm.base_build || '?')}</b> → <b>${h(tdm.tip_build || '?')}</b>${tdm.run_id ? ` · run ${h(tdm.run_id)}` : ' · no run yet'}${tdm.result ? ` · ${h(tdm.result)}` : ''} · ${spLink(c.spec_url, 'docs', c.spec_file)} · <button class="mini" data-brief="${h(c.key)}">brief</button></div>
+          <div class="level-meta">${statusChip(c)} ${workChip(c)} ${prChip(lvl.pr)} ${prActions(lvl.pr, c)} ${closedPrs(lvl.closed_prs)} ${reviewBadge(c)} ${lvl.checker_key ? `<span class="dim">checker</span> ${jiraLink(lvl.checker_key)} ${statusChip(cards[lvl.checker_key])}` : ''} ${lvl.tdm_key ? `<span class="dim">TDM review</span> ${jiraLink(lvl.tdm_key)} ${statusChip(cards[lvl.tdm_key])}` : ''} ${cardActions(c)}</div>
+          <div class="level-sub">${lvl.branch ? `${branchHtml(lvl)} <span>→ into <code>${h(shortBranch(lvl.base_branch))}</code></span>` : 'No branch of its own: each card below is one spine PR (an integration branch into the one under it) or one TDM comparison.'}</div>
+          <div class="level-sub">${lvl.branch ? `TDM builds <b>${h(tdm.base_build || '?')}</b> → <b>${h(tdm.tip_build || '?')}</b>${tdm.run_id ? ` · run ${h(tdm.run_id)}` : ' · no run yet'}${tdm.result ? ` · ${h(tdm.result)}` : ''} · ` : ''}${lvl.review_tdm_card ? `<span class="dim">TDM review</span> ${jiraLink(lvl.review_tdm_card)} ${statusChip(cards[lvl.review_tdm_card])} · ` : ''}${lvl.merge_card ? `<span class="dim">merge PR card</span> ${jiraLink(lvl.merge_card)} ${statusChip(cards[lvl.merge_card])} · ` : ''}${spLink(c.spec_url, 'docs', c.spec_file)} · <button class="mini" data-brief="${h(c.key)}">brief</button></div>
           <div class="brief" id="brief-${h(c.key)}" hidden>${briefHtml(c)}</div>
           ${reviewList(c)}
         </div>
@@ -588,7 +604,7 @@ footer { margin-top: 28px; color: var(--muted); font-size: 12px; text-align: cen
     const chk = c.checker_key ? data.cards[c.checker_key] : null;
     return `<li class="card-row">
       <div class="row-main"><span class="pos">${pos}</span>${statusChip(c)} ${jiraLink(c.key)} <span class="chip short">${h(c.short || '')}</span> <span class="title">${h(c.title)}</span> ${reviewBadge(c)}</div>
-      <div class="row-side">${workChip(c)} ${prChip(c.pr)} ${prActions(c.pr, c)} ${closedPrs(c.closed_prs)} ${c.branch_exists ? `<a href="${h(c.branch_url)}" target="_blank" rel="noopener"><code>${h(shortBranch(c.branch))}</code></a>` : ''} ${chk ? `<span class="dim">check</span> ${jiraLink(chk.key)} ${statusChip(chk)}` : ''} ${spLink(c.spec_url, 'spec', c.spec_file)}${c.evidence_url ? ` · ${spLink(c.evidence_url, 'evidence', c.evidence_file)}` : ''} <button class="mini" data-brief="${h(c.key)}">brief</button> ${cardActions(c)}</div>
+      <div class="row-side">${workChip(c)} ${prChip(c.pr)} ${prActions(c.pr, c)} ${closedPrs(c.closed_prs)} ${c.branch_exists ? `<a href="${h(c.branch_url)}" target="_blank" rel="noopener"><code>${h(shortBranch(c.branch))}</code></a>` : ''} ${mergePhaseHtml(c)} ${chk ? `<span class="dim">check</span> ${jiraLink(chk.key)} ${statusChip(chk)}` : ''} ${spLink(c.spec_url, 'spec', c.spec_file)}${c.evidence_url ? ` · ${spLink(c.evidence_url, 'evidence', c.evidence_file)}` : ''} <button class="mini" data-brief="${h(c.key)}">brief</button> ${cardActions(c)}</div>
       <div class="brief" id="brief-${h(c.key)}" hidden>${briefHtml(c)}</div>
       ${reviewList(c)}
     </li>`;
@@ -628,7 +644,7 @@ footer { margin-top: 28px; color: var(--muted); font-size: 12px; text-align: cen
         const cpCard = cp && data.cards[cp];
         return `<tr>
           <td class="nowrap">${jiraLink(c.key)}<br><span class="chip short">${h(c.short || c.type)}</span></td>
-          <td>${h(c.title)} ${reviewBadge(c)}<div class="small dim">${h(c.type)}${c.work_status ? ' · plan: ' + h(WORK_LABEL[c.work_status] || c.work_status) : ''}</div>${reviewList(c)}</td>
+          <td>${h(c.title)} ${reviewBadge(c)}<div class="small dim">${h(c.type)}${c.work_status ? ' · plan: ' + h(WORK_LABEL[c.work_status] || c.work_status) : ''}${c.integration_key ? ' · for ' + h((levelByKey(c.integration_key) || {}).short || c.integration_key) : ''}</div>${reviewList(c)}</td>
           <td class="nowrap">${statusChip(c)}</td>
           <td>${h(c.assignee || '')}</td>
           <td class="nowrap">${prChip(c.pr)}<div>${prActions(c.pr, c)}</div>${closedPrs(c.closed_prs)}</td>
@@ -816,7 +832,7 @@ footer { margin-top: 28px; color: var(--muted); font-size: 12px; text-align: cen
       if (!rows || !rows.length) return `<h2>${h(title)}</h2><div class="dim">none</div>`;
       const cols = Object.keys(rows[0]);
       const label = k => k === 'n' ? '#' : k.replace(/_/g, ' ').replace(/\b\w/g, m => m.toUpperCase()).replace('Elink', 'ELink').replace('Tdm', 'TDM').replace('Pr', 'PR');
-      const cell = v => Array.isArray(v) ? v.map(x => `<code>${h(x)}</code>`).join('<br>') : h(v);
+      const cell = v => Array.isArray(v) ? v.map(x => `<code>${h(x)}</code>`).join('<br>') : /^AFM-\d+$/.test(v) ? jiraLink(v) : h(v);
       return `<h2>${h(title)}</h2><div class="panel tablewrap"><table><thead><tr>${cols.map(c => `<th>${h(label(c))}</th>`).join('')}</tr></thead><tbody>${rows.map(r => `<tr>${cols.map(c => `<td>${cell(r[c])}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
     };
     $('#tab-tdm').innerHTML = `<p class="dim small">One build at the start and one at the end of every integration branch; the end of one is the start of the next. Source: the TDM builds file (see Links).</p>` + table('Builds', data.tdm.builds) + table('TDM comparisons', data.tdm.comparisons);
@@ -878,7 +894,7 @@ footer { margin-top: 28px; color: var(--muted); font-size: 12px; text-align: cen
   // Block colour: --b1..--b6 in merge order of the six levels with children. The block short always travels with the colour.
   function blockColors() {
     const m = {};
-    mergeLevels().filter(l => l.children.length).forEach((l, i) => { m[l.short] = `var(--b${i + 1})`; });
+    mergeLevels().filter(l => l.children.length && l.branch).forEach((l, i) => { m[l.short] = `var(--b${i + 1})`; });
     return m;
   }
 
@@ -925,7 +941,7 @@ footer { margin-top: 28px; color: var(--muted); font-size: 12px; text-align: cen
     const radio = (v, label) => `<label><input type="radio" name="vis-color" value="${v}"${mode === v ? ' checked' : ''}> ${label}</label>`;
     const row = l => {
       const b = l.block || {};
-      return `<div class="mm-line"><button class="chip short" data-goto-tab="cards" data-goto-level="${h(l.key)}" title="Cards tab, filtered to this level">${h(l.short)}</button> ${jiraLink(l.key)} <b>${h(l.title)}</b> · ${l.pr ? prChip(l.pr) : '<span class="chip dim">spine PR after block merges</span>'} <span class="dim small">${num(b.commits)} commits · ${num(b.changed_files)} files ${churn(b.additions, b.deletions)}</span></div>
+      return `<div class="mm-line"><button class="chip short" data-goto-tab="cards" data-goto-level="${h(l.key)}" title="Cards tab, filtered to this level">${h(l.short)}</button> ${jiraLink(l.key)} <b>${h(l.title)}</b> · ${l.pr ? prChip(l.pr) : l.branch ? '<span class="chip dim">spine PR after block merges</span>' : '<span class="chip dim">the spine PRs are the pills below</span>'} ${l.block ? `<span class="dim small">${num(b.commits)} commits · ${num(b.changed_files)} files ${churn(b.additions, b.deletions)}</span>` : ''}</div>
         <div class="mm-line vchain">${l.children.length ? l.children.map(k => `<span class="vnode">${pill(cards[k])}</span>`).join('') : '<span class="dim small">no inner PRs: the blocks above merge into this branch one after the other</span>'}</div>`;
     };
     $('#vis-map').innerHTML = `<h2>Merge map</h2>
@@ -1126,7 +1142,7 @@ footer { margin-top: 28px; color: var(--muted); font-size: 12px; text-align: cen
       const ahead = l.spine_ahead, own = l.spine_own;
       const carried = ahead == null ? '?' : ahead - (own || 0);
       const mine = prs.filter(p => (l.inner_prs || []).includes(p.number) || (l.pr && l.pr.number === p.number)).filter(keep);
-      return `<div class="mm-line"><span class="chip short">${h(l.short)}</span> ${jiraLink(l.key)} <span class="spine">spine <code>${h(shortBranch(l.branch))}</code>: ${h(ahead == null ? '?' : ahead)}↑ (${h(carried)} carried from ${h(prev ? prev.short : 'below')} · ${h(own == null ? '?' : own)} own) ${h(l.spine_behind == null ? '?' : l.spine_behind)}↓ · tip <code>${h(l.tip_sha || '?')}</code> ${h(fmtDate(l.tip_committed_at))}</span></div>
+      return `<div class="mm-line"><span class="chip short">${h(l.short)}</span> ${jiraLink(l.key)} <span class="spine">${l.branch ? `spine <code>${h(shortBranch(l.branch))}</code>: ${h(ahead == null ? '?' : ahead)}↑ (${h(carried)} carried from ${h(prev ? prev.short : 'below')} · ${h(own == null ? '?' : own)} own) ${h(l.spine_behind == null ? '?' : l.spine_behind)}↓ · tip <code>${h(l.tip_sha || '?')}</code> ${h(fmtDate(l.tip_committed_at))}` : 'no branch of its own: the spine PRs of the levels below'}</span></div>
         <div class="hp-list">${mine.map(prRow).join('') || '<span class="dim small">no PRs match the filters</span>'}</div>`;
     };
     $('#vis-health').innerHTML = `<h2>Stack health</h2>

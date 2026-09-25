@@ -47,13 +47,13 @@ Clone this repo, copy or symlink the data repo's `data.json` next to `index.html
 
 | Tab | Shows |
 |---|---|
-| Stack | The integration levels in merge order, each with its branch, PR, test-build ids and the cards in stack order |
+| Stack | The integration levels in merge order, each with its branch, PR, test-build ids, its Review TDM / Merge PR cards and the cards in stack order; last the Merge phase level (no branch of its own): its MERGE-n cards are the six spine PRs, one per integration branch, its TDM-n cards the TDM comparisons |
 | Cards | All cards as a table with filters: build, type, assignee, status, text |
 | Checker | The checker's cards grouped ready-to-start / in progress / done / waiting, with the programmer PR and the spec link |
 | Review | Open review items (questions that need a human decision) grouped by card in stack order, with options, default, owner and a flag for items that need domain judgement; filters by owner and kind; decided items collapsed below. The tab label carries the open count |
 | Decisions | The decisions Varada has to make: section 11 of the structure plan plus her own `decision` items from Review, from `decisions[]` in `data.json`. One table, open first: Id, Decision, Default (highlighted; what the plan does if nobody objects), Status, Links (PR and card chips, plus the merged review ids), and a `Copy reply` button per open row that copies `Id: default` for pasting into chat. Toggle open / all. The tab label carries the open count (`decision_counts.open`). The page does not write; the choice is recorded in the plan |
 | Visuals | Four hand-rolled panels (CSS grid / flex + inline SVG, no library): **Merge map** (levels in merge order on a rail, each block's inner PR chain as pills, bold = commits ahead of base; colour by PR state / Jira status / checker status), **Repo footprint** (folder bars segmented by block with binary files hatched, a block × block overlap matrix, a shared / hot files table that a matrix cell or bar segment filters; block chips toggle a block off everywhere), **Progress** (five tiles that jump to their tabs, a Jira-status bar plus PR squares per level, open decision / review chips, the TDM rail of 7 builds and their comparisons) and **Stack health** (per level the spine's ahead / behind, per PR an age dot, ahead / behind micro bars, the GitHub merge state, a copyable `gh pr checkout`). Panel controls re-render only their panel and are kept in this browser's localStorage. Data: the `prs[]` git fields, `levels[].block`, `vis` and `dev_sha` in `data.json` |
-| TDM | The builds table and the comparisons table |
+| TDM | The builds table and the comparisons table; the Review TDM and Merge PR card columns link to Jira |
 | Links | Every document, Jira filter and GitHub link, grouped |
 
 SharePoint links (📁: spec, evidence, docs, the SharePoint group in Links) open the containing folder in the SharePoint library view, in a new tab. The file to open there is named in the link text (`spec_file` / `evidence_file` / `file` in `data.json`). A direct link to a `.md` file makes SharePoint download it, so the data file never contains one; `check_data.py` in the data repo rejects it.
@@ -76,5 +76,6 @@ Quick actions (v1): each open PR has buttons that copy a ready `gh` command (`re
 | v1.5 | Impact row under each decision: the cards / PRs it touches (chips) and how, from `decisions[].affects` (Affects column of plan §11, `impact` of a review item) |
 | v1.7 | Visuals tab: merge map, repo footprint (folder bars, overlap matrix, hot files), progress tiles and rows with the TDM rail, stack health. Tokens `--merged` and `--b1`…`--b6` (block colours, dataviz categorical palette) in the light and both dark colour blocks |
 | v1.6 | Affects rows hidden by default: `▸ affects (n)` toggle under each Id (a click on the row works too), expand all / collapse all next to the open-only filter; expanded ids kept in this browser's localStorage |
+| v1.9 | Merge phase level (AFM-1307 / 1308 / 1309 and their MERGE-n, MERGE-n check and TDM-n sub-tasks) in Stack, Cards, Checker and Visuals; a spine PR (head = an integration branch) belongs to its MERGE-n card and shows as that level's PR, in the live overlay too; TDM comparison rows link their Review TDM and Merge PR cards |
 | v2 | GitHub API writes from the page: mark ready, approve, comment; Jira transitions via deep links |
 | v3 | Scheduled data refresh, notifications when a card becomes ready to check |
